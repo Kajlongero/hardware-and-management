@@ -1,0 +1,34 @@
+{
+  "name": "sales-hardware-and-inventory-management-api",
+  "version": "1.0.0",
+  "description": "API for the project Sales Hardware and inventory management",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Kajlongero/hardware-and-management.git"
+  },
+  "keywords": [
+    "node",
+    "express",
+    "graphql",
+    "apollo",
+    "prisma"
+  ],
+  "author": "Kajlongero",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Kajlongero/hardware-and-management/issues"
+  },
+  "homepage": "https://github.com/Kajlongero/hardware-and-management#readme",
+  "dependencies": {
+    "@apollo/server": "^4.9.4",
+    "@prisma/client": "^5.4.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "graphql": "^16.8.1",
+    "prisma": "^5.4.2"
+  }
+}
