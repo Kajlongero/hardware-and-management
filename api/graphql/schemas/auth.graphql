@@ -1,0 +1,26 @@
+type Auth {
+  id: Int!
+  email: String!
+  createdAt: String!
+  updatedAt: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Token {
+  token: String!
+}
+
+type Query {
+  getCustomerByToken: Customer
+  getEmployeeByToken: Employee
+
+  logout: String
+}
+
+type Mutation {
+  login(input: LoginInput!): Token
+}

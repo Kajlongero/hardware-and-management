@@ -1,11 +1,84 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+enum DNI_TYPES {
+  V
+  J
+  K
+  P
+}
+
+enum WORK_DAYS {
+  SUNDAY
+  MONDAY
+  THUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum ROLES {
+  EMPLOYEE
+  CUSTOMER
+  PARTNER
+  OWNER
+}
+
+enum EMPLOYEE_ROLES {
+  CUSTOMER_SERVICE
+  INVENTORY_MANAGER
+  SELLER
+  CLEANER
+}
+
+model Employee {
+  id        Int            @id @default(autoincrement())
+  firstName String         @map("first_name")
+  lastName  String         @map("last_name")
+  address   String
+  birthDate DateTime       @map("birth_date")
+  dni       Int
+  dniType   DNI_TYPES      @map("dni_type")
+  salary    Float
+  workDays  WORK_DAYS[]    @map("work_days")
+  charge    EMPLOYEE_ROLES
+  isActive  Boolean        @default(true) @map("active")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime?      @default(now()) @updatedAt @map("updated_at")
+  firedAt   DateTime?      @map("fired_at")
+  authId    Int            @unique
+  auth      Auth           @relation(fields: [authId], references: [id])
+}
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  address   String
+  dni       Int
+  dniType   DNI_TYPES @map("dni_type")
+  birthDate DateTime? @map("birth_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
+  authId    Int       @unique
+  auth      Auth      @relation(fields: [authId], references: [id])
+}
+
+model Auth {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  role      ROLES?     @default(CUSTOMER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime?  @default(now()) @updatedAt
+  deletedAt DateTime?
+  Employee  Employee[]
+  Customer  Customer[]
 }

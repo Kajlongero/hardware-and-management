@@ -1,0 +1,35 @@
+type Customer {
+  id: Int!
+  firstName: String!
+  lastName: String!
+  address: String!
+  birthDate: String!
+  dni: Int!
+  dniType: DNI_TYPES!
+  auth: Auth!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input CustomerInput {
+  email: String!
+  password: String!
+  firstName: String!
+  lastName: String!
+  address: String!
+  dni: Int!
+  dniType: DNI_TYPES!
+  birthDate: String
+}
+
+type Query {
+  getAllCustomer(skip: Int, take: Int): [Customer]!
+  getUniqueCustomer(id: Int!): Customer
+}
+
+type Mutation {
+  createCustomer(input: CustomerInput!): Customer
+  editCustomer(id: Int!, input: CustomerInput!): Customer
+  deleteCustomer(id: Int!): Int
+}

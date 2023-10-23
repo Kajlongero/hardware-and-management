@@ -1,0 +1,38 @@
+type Employee {
+  id: Int!
+  firstName: String!
+  lastName: String!
+  address: String!
+  birthDate: String!
+  dni: Int!
+  dniType: DNI_TYPES!
+  salary: Float!
+  work_days: [WORK_DAYS!]!
+  isActive: Boolean
+  createdAt: String!
+  updatedAt: String!
+  firedAt: String!
+  auth: Auth
+}
+
+input EmployeeInput {
+  email: String!
+  password: String!
+  firstName: String!
+  lastName: String!
+  address: String!
+  dni: Int!
+  dniType: DNI_TYPES!
+  birthDate: String
+}
+
+type Query {
+  getAllEmployees: [Employee!]!
+  getUniqueEmployees(id: Int!): Employee
+}
+
+type Mutation {
+  createEmployee(input: EmployeeInput!): Customer
+  editEmployee(id: Int!, input: EmployeeInput!): Customer
+  deleteEmployee(id: Int!): Int
+}

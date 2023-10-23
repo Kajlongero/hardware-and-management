@@ -1,0 +1,16 @@
+enum DNI_TYPES {
+  V
+  J
+  K
+  P
+}
+
+enum WORK_DAYS {
+  SUNDAY
+  MONDAY
+  THUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
