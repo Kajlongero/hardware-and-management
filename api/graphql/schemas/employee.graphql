@@ -3,7 +3,6 @@ type Employee {
   firstName: String!
   lastName: String!
   address: String!
-  birthDate: String!
   dni: Int!
   dniType: DNI_TYPES!
   salary: Float!
@@ -13,6 +12,7 @@ type Employee {
   updatedAt: String!
   firedAt: String!
   auth: Auth
+  birthDate: String
 }
 
 input EmployeeInput {

@@ -1,4 +1,6 @@
 const { hashPassword } = require("../../functions/bcrypt.functions");
+const { verifyAuth, signToken } = require("../../functions/jwt.functions");
+const { checkRole } = require("../../middlewares/check.role");
 
 const CustomerResolver = {
   Query: {
@@ -10,6 +12,9 @@ const CustomerResolver = {
         skip: skip ? skip : 0,
         take, 
       });
+      
+      console.log(ctx.isAuthenticated);
+
       return customers;
     },
     getUniqueCustomer: async (_, { id }, ctx) => {
@@ -47,20 +52,49 @@ const CustomerResolver = {
         }
       });
 
-      return customer;
-    }
+      return signToken(customer);
+    },
+    editCustomer: async (_, { id, input }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER', 'ADMIN');
+
+      const { email, password } = input.auth;
+      
+      const customer = await ctx.db.orm.customer.findUnique({
+        where: id,
+      });
+
+      if((user.sub !== customer.id) || (user.role !== 'ADMIN')) throw new Error('unauthorized');
+      
+      const updatedCustomer = await ctx.db.orm.customer.update({
+        where: {
+          id,
+        },
+        ...input,
+        auth: (email || password) ?{
+          update: {
+
+          }
+        } : undefined,
+      });
+
+      return updatedCustomer;
+    },
+    deleteCustomer: async (_, { id }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole(user, 'ADMIN');
+
+      const customer = await ctx.db.orm.customer.findUnique({ where: { id } });
+
+      if((user.sub !== customer.id) || (user.role !== 'ADMIN')) throw new Error('unauthorized');
+
+      await ctx.db.orm.auth.delete({ where: { id: customer.authId } });
+      await ctx.db.orm.customer.delete({ where: { id } });
+
+      return customer.id;
+    },
   },
   Customer: {
-    id: (parent) => parent.id,
-    firstName: (parent) => parent.firstName,
-    lastName: (parent) => parent.lastName,
-    address: (parent) => parent.address,
-    birthDate: (parent) => parent.birthDate,
-    dni: (parent) => parent.dni,
-    dniType: (parent) => parent.dniType,
-    createdAt: (parent) => parent.createdAt,
-    updatedAt: (parent) => parent.updatedAt,
-    deletedAt: (parent) => parent.deletedAt,
     auth: (parent) => ({
       id: parent.auth?.id,
       email: parent.auth?.email,

@@ -3,13 +3,13 @@ type Customer {
   firstName: String!
   lastName: String!
   address: String!
-  birthDate: String!
   dni: Int!
   dniType: DNI_TYPES!
   auth: Auth!
   createdAt: String!
   updatedAt: String
   deletedAt: String
+  birthDate: String
 }
 
 input CustomerInput {

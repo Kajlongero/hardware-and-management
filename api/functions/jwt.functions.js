@@ -9,15 +9,22 @@ const signToken = (data) => {
   const opts = {
     sub: data.id,
     role: data.auth.role,
-    iat: new Date(),
   };
 
   const token = jwt.sign(opts, config.JWT_SECRET, {
     expiresIn: '7d',
-    algorithm: 'HS512'
   });
 
-  return token;
+  return {
+    token
+  };
 }
 
-module.exports = { decodeToken, signToken };
+const verifyAuth = async (ctx) => {
+  const { user } = await ctx.authenticate('jwt', { session: false });
+  if(!user) throw new Error('unauthorized');
+
+  return user;
+}
+
+module.exports = { decodeToken, signToken, verifyAuth };

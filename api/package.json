@@ -4,7 +4,9 @@
   "description": "API for the project Sales Hardware and inventory management",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemonn index.js",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -36,7 +38,9 @@
     "graphql-passport": "^0.6.7",
     "graphql-scalars": "^1.22.4",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
     "passport": "^0.6.0",
+    "passport-jwt": "^4.0.1",
     "prisma": "^5.4.2"
   }
 }

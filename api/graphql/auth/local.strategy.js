@@ -1,6 +1,6 @@
 const { GraphQLLocalStrategy } = require('graphql-passport');
 const { PrismaClient } = require('@prisma/client');
-const comparePasswords = require('../../functions/bcrypt.functions');
+const { comparePasswords } = require('../../functions/bcrypt.functions');
 
 const orm = new PrismaClient();
 
@@ -21,8 +21,10 @@ const GqlCustomerStrategy = new GraphQLLocalStrategy(async (email, password, don
         authId: findEmail.id,
       }
     });
+
     
-    const user = { ...userData, auth: findEmail };
+    const user = {...userData, auth: { ...findEmail }};
+    console.log(user);
     done(null, user);
   }catch(e){
     done(e, null);

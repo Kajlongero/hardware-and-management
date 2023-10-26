@@ -1,17 +1,20 @@
+scalar EmailAddress
+scalar JWT
+
 type Auth {
   id: Int!
-  email: String!
+  email: EmailAddress!
   createdAt: String!
   updatedAt: String
 }
 
 input LoginInput {
-  email: String!
+  email: EmailAddress!
   password: String!
 }
 
 type Token {
-  token: String!
+  token: JWT!
 }
 
 type Query {
@@ -22,5 +25,9 @@ type Query {
 }
 
 type Mutation {
-  login(input: LoginInput!): Token
+  customerLogin(input: LoginInput!): Token
+  employeeLogin(input: LoginInput!): Token
+
+  customerPasswordRecovery(email: EmailAddress): String
+  employeePasswordRecovery(email: EmailAddress): String
 }

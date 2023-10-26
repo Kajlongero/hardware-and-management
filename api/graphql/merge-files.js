@@ -1,20 +1,24 @@
 const { loadFiles } = require('@graphql-tools/load-files');
 const { mergeResolvers } = require('@graphql-tools/merge');
+const { resolvers, typeDefs } = require('graphql-scalars');
 const CustomerResolver = require('./resolvers/customer');
+const AuthResolver = require('./resolvers/auth');
 
 const schemaFiles = async (path) => {
   const filesLoaded = await loadFiles(path, {
     ignoredExtensions: ['js', 'jsx', 'ts', 'tsx'],
   });
 
-  return filesLoaded;  
+  return [...filesLoaded, typeDefs];  
 }
 
 const resolverFiles = async () => {
-  const resolvers = mergeResolvers([
+  const rslvrs = mergeResolvers([
+    resolvers,
+    AuthResolver,
     CustomerResolver,
   ]);
-  return resolvers;
+  return rslvrs;
 }
 
 module.exports = { schemaFiles, resolverFiles };
