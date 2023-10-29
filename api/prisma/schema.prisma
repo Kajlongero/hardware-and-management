@@ -36,6 +36,15 @@ enum EMPLOYEE_ROLES {
   INVENTORY_MANAGER
   SELLER
   CLEANER
+  ADMINISTRATIVE
+}
+
+enum OrderStatus {
+  CANCELLED
+  COMPLETED
+  POSTPONED
+  PENDING
+  ERROR
 }
 
 model Employee {
@@ -43,7 +52,7 @@ model Employee {
   firstName String         @map("first_name")
   lastName  String         @map("last_name")
   address   String
-  birthDate DateTime       @map("birth_date")
+  birthDate DateTime?      @map("birth_date")
   dni       Int
   dniType   DNI_TYPES      @map("dni_type")
   salary    Float
@@ -55,6 +64,7 @@ model Employee {
   firedAt   DateTime?      @map("fired_at")
   authId    Int            @unique
   auth      Auth           @relation(fields: [authId], references: [id])
+  Order     Order[]
 }
 
 model Customer {
@@ -69,6 +79,7 @@ model Customer {
   updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
   authId    Int       @unique
   auth      Auth      @relation(fields: [authId], references: [id])
+  Order     Order[]
 }
 
 model Auth {
@@ -77,8 +88,36 @@ model Auth {
   password  String
   role      ROLES?     @default(CUSTOMER)
   createdAt DateTime   @default(now())
-  updatedAt DateTime?  @default(now()) @updatedAt
+  updatedAt DateTime?  @updatedAt
   deletedAt DateTime?
   Employee  Employee[]
   Customer  Customer[]
+}
+
+model Product {
+  id         Int       @id @default(autoincrement())
+  name       String
+  stock      Int
+  price      Float
+  sku        String    @default(uuid())
+  coverImage String
+  images     String[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime? @updatedAt
+  deletedAt  DateTime?
+  Order      Order[]
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  total      Float
+  status     OrderStatus @default(PENDING)
+  customerId Int
+  employeeId Int
+  products   Product[]
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime?   @updatedAt @map("updated_at")
+  deletedAt  DateTime?   @map("deleted_at")
 }

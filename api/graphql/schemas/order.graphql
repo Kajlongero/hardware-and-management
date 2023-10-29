@@ -1,0 +1,38 @@
+enum OrderStatus {
+  CANCELLED
+  COMPLETED
+  POSTPONED
+  PENDING
+  ERROR
+}
+
+type Order {
+  id: Int!
+  total: Float!
+  status: OrderStatus!
+  products: [Product!]!
+  customer: Customer!
+  employee: Employee!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input OrderInput {
+  products: [ProductInput!]!
+  customerId: Int!
+  employeeId: Int!
+}
+
+type Query {
+  getAllOrders: [Order]
+  getOrderById(id: Int!): Order
+}
+
+type Mutation {
+  setStatus(id: Int!, status: OrderStatus!): Order
+
+  createOrder(input: OrderInput!): Order
+  editOrder(input: OrderInput!): Order
+  deleteOrder(input: OrderInput!): Int
+}

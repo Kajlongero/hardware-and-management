@@ -1,10 +1,14 @@
 const { hashPassword } = require("../../functions/bcrypt.functions");
 const { verifyAuth, signToken } = require("../../functions/jwt.functions");
+const isOnList = require("../../functions/role.contains");
 const { checkRole } = require("../../middlewares/check.role");
 
 const employeeResolver = {
   Query: {
     getAllEmployee: async (_, { skip, take }, ctx) => {
+      const user = verifyAuth(ctx);
+      checkRole(user, 'OWNER', 'ADMIN');
+
       const employee = await ctx.db.orm.employee.findMany({
         include: {
           auth: true,
@@ -12,12 +16,13 @@ const employeeResolver = {
         skip: skip ? skip : 0,
         take, 
       });
-      
-      console.log(ctx.isAuthenticated);
 
       return employee;
     },
     getUniqueEmployee: async (_, { id }, ctx) => {
+      const user = verifyAuth(ctx);
+      checkRole(user, 'OWNER', 'ADMIN');
+
       const findById = await ctx.db.orm.employee.findUnique({
         where: {
           id,
@@ -27,58 +32,66 @@ const employeeResolver = {
         },
       });
 
-      if(!findById) throw new Error('employee does not exist');
+      ctx.error.notFound(findById, 'employee does not exists');
       return findById;
     }
   },
   Mutation: {
     createEmployee: async (_, { input }, ctx) => {
-      const { email, password } = input;
+      try {
+        const { email, password } = input;
+        const user = await verifyAuth(ctx);
+        checkRole(user, 'OWNER');
+        
+        const hash = await hashPassword(password);
+        const obj = { email, password: hash };
 
-      const user = await verifyAuth(ctx);
-      checkRole(user, 'OWNER');
-      
-      const hash = await hashPassword(password);
-      const obj = { email, password: hash };
+        delete input.email;
+        delete input.password;
 
-      const employee = await ctx.db.orm.employee.create({
-        data: {
-          ...input,
-          auth: {
-            create: {
-              ...obj,
+        const employee = await ctx.db.orm.employee.create({
+          data: {
+            ...input,
+            auth: {
+              create: {
+                ...obj,
+              }
             }
+          },
+          include: {
+            auth: true,
           }
-        }
-      });
+        }); 
 
-      return signToken(employee);
-
-
+        return signToken(employee);
+      }catch(e){
+        throw new Error(e.message);
+      }
     },
     editEmployee: async (_, { id, input }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
-
-      const { email, password } = input.auth;
       
       const employee = await ctx.db.orm.employee.findUnique({
-        where: id,
+        where: {
+          authId: id,
+        },
       });
+      ctx.error.notFound(employee, 'employee does not exists');
 
-      if((user.sub !== employee.id) || (user.role !== ('ADMIN' || 'OWNER'))) 
-        throw new Error('unauthorized');
+      if(isOnList(user.role, 'OWNER', 'ADMIN')) throw new Error('unauthorized');
+      if(user.sub !== employee.employeeId) throw new Error('unauthorized');
+
+      const obj = { email: input.email, password: input.password };
       
       const updatedEmployee = await ctx.db.orm.employee.update({
         where: {
           id,
         },
-        ...input,
-        auth: (email || password) ? {
-          update: {
-
-          }
-        } : undefined,
+        data: {
+          ...input,
+          auth: (email || password) ? { ...obj } : undefined
+        }
       });
 
       return updatedEmployee;
@@ -88,13 +101,15 @@ const employeeResolver = {
       checkRole(user, 'OWNER', 'ADMIN');
 
       const employee = await ctx.db.orm.employee.findUnique({ where: { id } });
+      ctx.error.notFound(employee, 'employee does not exists');
 
-      if((user.sub !== employee.id) || (user.role !== 'ADMIN')) throw new Error('unauthorized');
+      if(isOnList(user.role, 'ADMIN', 'OWNER')) 
+        throw new Error('unauthorized');
 
       await ctx.db.orm.auth.delete({ where: { id: employee.authId } });
       await ctx.db.orm.employee.delete({ where: { id } });
 
-      return employee.id;
+      return id;
     },
   },
   Employee: {

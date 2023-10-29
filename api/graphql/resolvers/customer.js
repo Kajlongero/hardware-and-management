@@ -12,8 +12,6 @@ const CustomerResolver = {
         skip: skip ? skip : 0,
         take, 
       });
-      
-      console.log(ctx.isAuthenticated);
 
       return customers;
     },
@@ -27,7 +25,7 @@ const CustomerResolver = {
         },
       });
 
-      if(!findById) throw new Error('customer does not exist');
+      ctx.error.notFound(findById, 'customer does not exists');
       return findById;
     }
   },
@@ -58,13 +56,25 @@ const CustomerResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'ADMIN');
 
-      const { email, password } = input.auth;
+      const obj = {
+        email: input.email,
+        password: input.password,
+      }
+
+      delete input.email;
+      delete input.password;
       
       const customer = await ctx.db.orm.customer.findUnique({
-        where: id,
+        where: {
+          id,
+        },
       });
+      ctx.error.notFound(customer, 'customer does not exists');
 
-      if((user.sub !== customer.id) || (user.role !== 'ADMIN')) throw new Error('unauthorized');
+      if((user.cid !== customer.id) || (user.role !== 'ADMIN')) 
+        throw new Error('unauthorized');
+
+      const { email, password } = obj;
       
       const updatedCustomer = await ctx.db.orm.customer.update({
         where: {
@@ -73,11 +83,10 @@ const CustomerResolver = {
         ...input,
         auth: (email || password) ?{
           update: {
-
+            ...obj
           }
         } : undefined,
       });
-
       return updatedCustomer;
     },
     deleteCustomer: async (_, { id }, ctx) => {
@@ -85,13 +94,15 @@ const CustomerResolver = {
       checkRole(user, 'ADMIN');
 
       const customer = await ctx.db.orm.customer.findUnique({ where: { id } });
+      ctx.error.notFound(customer, 'customer does not exists');
 
-      if((user.sub !== customer.id) || (user.role !== 'ADMIN')) throw new Error('unauthorized');
+      if((user.cid !== customer.id) || (user.role !== 'ADMIN')) 
+        throw new Error('unauthorized');
 
       await ctx.db.orm.auth.delete({ where: { id: customer.authId } });
       await ctx.db.orm.customer.delete({ where: { id } });
 
-      return customer.id;
+      return id;
     },
   },
   Customer: {

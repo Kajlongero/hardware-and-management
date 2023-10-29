@@ -1,0 +1,33 @@
+scalar URL
+
+type Product {
+  id: Int!
+  name: String!
+  stock: Int!
+  price: Float!
+  sku: String!
+  coverImage: URL!
+  images: [URL]!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input ProductInput {
+  name: String!
+  stock: Int!
+  price: Float!
+  coverImage: URL!
+  images: [URL]
+}
+
+type Query {
+  getAllProducts(take: Int, step: Int): [Product!]!
+  getProductById(id: Int!): Product
+}
+
+type Mutation {
+  createProduct(input: ProductInput!): Product
+  editProduct(id: Int!, input: ProductInput!): Product
+  deleteProduct(id: Int!): Int
+}

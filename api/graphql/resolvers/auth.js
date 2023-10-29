@@ -8,12 +8,14 @@ const AuthResolver = {
       const user = await verifyAuth(ctx);
       const customer = await ctx.db.orm.customer.findUnique({
         where: {
-          id: user.sub, 
+          id: user.cid, 
         },
         include: {  
           auth: true
         }
       });
+
+      ctx.error.notFound(customer, 'invalid customer token');
 
       return customer;
     },
@@ -21,12 +23,14 @@ const AuthResolver = {
       const user = await verifyAuth(ctx);
       const employee = await ctx.db.orm.employee.findUnique({
         where: {
-          id: user.id,
+          id: user.eid,
         },
         include: {
           auth: true,
         }
       });
+
+      ctx.error.notFound(employee, 'invalid employee token');
 
       return employee;
     }
@@ -61,8 +65,7 @@ const AuthResolver = {
         data: {
           password: hashedPassword,
         }
-      })
-
+      });
       return hashedPassword;
     },
     employeePasswordRecovery: async (_, { email }, ctx) => {
@@ -85,11 +88,8 @@ const AuthResolver = {
           password: hashedPassword,
         }
       })
-
       return hashedPassword;
-
     }
-
   },
 }
 

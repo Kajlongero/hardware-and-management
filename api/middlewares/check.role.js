@@ -1,7 +1,7 @@
 const checkRole = (user, ...allowedRoles) => {
-  const { role } = user.auth;
+  const { role } = user;
 
-  if(!allowedRoles.includes(role)) throw new Error('unauthorized');
+  if(!allowedRoles.some(r => r === role)) throw new Error('unauthorized');
 };
 
 module.exports = { checkRole };

@@ -12,6 +12,7 @@ const { ApolloServerPluginDrainHttpServer } = require('@apollo/server/plugin/dra
 const { GqlCustomerStrategy, GqlEmployeeStrategy } = require('./auth/local.strategy');
 const apiRoutes = require('../routes');
 const JwtStrategy = require('./auth/jwt.strategy');
+const notFound = require('../middlewares/not.found');
 
 const orm = new PrismaClient();
 
@@ -49,10 +50,10 @@ const startGraphServer = async (drname) => {
       ApolloServerPluginDrainHttpServer({ httpServer }),
     ]
   });
-
   await server.start();
+
   app.use(expressMiddleware(server, {
-    context: ({ req, res }) => buildContext({ req, res, db: { orm }})
+    context: ({ req, res }) => buildContext({ req, res, db: { orm }, error: { notFound }})
   }));
 
   return app;

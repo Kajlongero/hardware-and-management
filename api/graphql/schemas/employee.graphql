@@ -1,3 +1,21 @@
+enum EMPLOYEE_ROLES {
+  CUSTOMER_SERVICE
+  INVENTORY_MANAGER
+  SELLER
+  CLEANER
+  ADMINISTRATIVE
+}
+
+enum WORK_DAYS {
+  SUNDAY
+  MONDAY
+  THUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
 type Employee {
   id: Int!
   firstName: String!
@@ -6,13 +24,14 @@ type Employee {
   dni: Int!
   dniType: DNI_TYPES!
   salary: Float!
-  work_days: [WORK_DAYS!]!
+  workDays: [WORK_DAYS!]!
+  charge: EMPLOYEE_ROLES!
   isActive: Boolean
   createdAt: String!
   updatedAt: String!
   firedAt: String!
-  auth: Auth
   birthDate: String
+  auth: Auth!
 }
 
 input EmployeeInput {
@@ -21,18 +40,31 @@ input EmployeeInput {
   firstName: String!
   lastName: String!
   address: String!
-  dni: Int!
+  salary: Float!
+  workDays: [WORK_DAYS]!
+  charge: EMPLOYEE_ROLES!
   dniType: DNI_TYPES!
-  birthDate: String
+  dni: Int!
+}
+
+input EmployeeInputEdit {
+  firstName: String
+  lastName: String
+  address: String
+  salary: Float
+  workDays: [WORK_DAYS]
+  charge: EMPLOYEE_ROLES
+  dniType: DNI_TYPES
+  dni: Int
 }
 
 type Query {
-  getAllEmployees: [Employee!]!
-  getUniqueEmployees(id: Int!): Employee
+  getAllEmployee: [Employee!]!
+  getUniqueEmployee(id: Int!): Employee
 }
 
 type Mutation {
   createEmployee(input: EmployeeInput!): Customer
-  editEmployee(id: Int!, input: EmployeeInput!): Customer
+  editEmployee(id: Int!, input: EmployeeInputEdit!): Customer
   deleteEmployee(id: Int!): Int
 }
