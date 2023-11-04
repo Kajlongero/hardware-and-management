@@ -1,0 +1,65 @@
+type ProductsSelled {
+  id: Int!
+  product: Product!
+  customer: Customer!
+  employee: Employee!
+  quantity: Int!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+type ProductsReturned {
+  id: Int!
+  product: Product!
+  customer: Customer!
+  reason: ClaimType!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+type ProductsNotForSale {
+  id: Int!
+  product: Product!
+  quantity: Int!
+  reason: ClaimType!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input ProductsSelledInput {
+  product: Int!
+  customer: Int!
+  employee: Int!
+  quantity: Int!
+}
+
+input ProductsReturnedInput {
+  product: Product!
+  customer: Customer!
+  reason: ClaimType!
+}
+
+type Query {
+  getAllProductsSelled: [ProductsSelled]
+  getAllProductsReturned: [ProductsReturned]
+
+  getUniqueProductSelled(id: Int!): ProductsSelled
+  getUniqueProductReturned(id: Int!): ProductsReturned
+
+  productMostSelled: ProductsSelled
+  productMostReturned: ProductsReturned
+}
+
+type Mutation {
+  sellProduct(input: ProductsSelledInput): ProductsSelled
+  returnProduct(input: ProductsReturnedInput): ProductsReturned
+
+  editProductSell(id: Int!, input: ProductsSelledInput): ProductsSelled
+  editProductReturned(id: Int!, input: ProductsReturnedInput): ProductsReturned
+
+  deleteProductSelled(id: Int!): Int
+  deleteProductReturned(id: Int!): Int
+}

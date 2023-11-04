@@ -15,7 +15,8 @@ const signToken = (data) => {
     role: role,
     cid: isOnList(role, 'CUSTOMER') ? data.id : null,
     eid: isOnList(role, 'EMPLOYEE') ? data.id : null,
-    aid: isOnList(role, 'ADMIN', 'OWNER') ? data.id : null
+    aid: isOnList(role, 'ADMIN', 'OWNER') ? data.id : null,
+    ec: data.charge ? data.charge : null,
   };
   return tokenSigned(opts);
 };

@@ -1,0 +1,59 @@
+scalar JSON
+
+enum LogType {
+  CREATED_USER_AUTH
+  CREATED_CUSTOMER
+  CREATED_EMPLOYEE
+  CREATED_ORDER
+  CREATED_PRODUCT
+  CREATED_PRODUCT_RETURNED
+  CREATED_PRODUCT_SELLED
+  EDITED_USER_AUTH
+  EDITED_CUSTOMER
+  EDITED_EMPLOYEE
+  EDITED_ORDER
+  EDITED_PRODUCT
+  EDITED_PRODUCT_RETURNED
+  EDITED_PRODUCT_SELLED
+  REMOVED_USER_AUTH
+  REMOVED_CUSTOMER
+  REMOVED_EMPLOYEE
+  REMOVED_ORDER
+  REMOVED_PRODUCT
+  REMOVED_PRODUCT_RETURNED
+  REMOVED_PRODUCT_SELLED
+  ERROR_WITH_USER_AUTH
+  ERROR_WITH_CUSTOMER
+  ERROR_WITH_EMPLOYEE
+  ERROR_WITH_ORDER
+  ERROR_WITH_PRODUCT
+  ERROR_WITH_PRODUCT_RETURNED
+  ERROR_WITH_PRODUCT_SELLED
+}
+
+type Logs {
+  id: Int!
+  content: JSON!
+  type: LogType!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input LogInput {
+  content: JSON!
+  type: LogType!
+}
+
+type Query {
+  getAllLogs: [Logs]
+  getUniqueLog(id: Int!): Logs
+
+  getLogsByType(type: LogType): [Logs]
+}
+
+type Mutation {
+  createLog(input: LogInput!): Logs
+  editLog(id: Int!, input: LogInput!): Logs
+  deleteLog(id: Int!): Int
+}

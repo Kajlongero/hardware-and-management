@@ -1,0 +1,59 @@
+enum ClaimType {
+  RETURN
+  DAMAGED
+  BROKEN
+  NOT_WORKING
+  DEFECT
+  DONT_WANTED
+}
+
+enum ClaimStatus {
+  CANCELLED
+  PENDING
+  REVIEWING
+  COMPLETED
+  DELETED
+  IRRELEVANT
+  ARCHIVED
+  SEEN
+}
+
+type Claims {
+  id: Int!
+  type: ClaimType!
+  status: ClaimStatus!
+  content: String!
+  subject: String!
+  customer: Customer!
+  products: [Product!]!
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+input ClaimInput {
+  type: ClaimType!
+  status: ClaimStatus!
+  content: String!
+  subject: String!
+  customer: Int!
+  products: [Int!]!
+}
+
+type Query {
+  getAllClaims: [Claims]
+  getUniqueClaim(id: Int!): Claims
+
+  getClaimsByStatus(status: ClaimStatus): [Claims]
+  getClaimsByType(type: ClaimType!): [Claims]
+  getClaimsByCustomer(customerId: Int!): [Claims]
+}
+
+type Mutation {
+  editClaimType(id: Int!, type: ClaimType!): Claims
+  editClaimStatus(id: Int!, type: ClaimStatus!): Claims
+
+  createClaim(input: ClaimInput!): Claims
+  editClaim(id: Int!, input: ClaimInput): Claims
+  deleteClaim(id: Int!): Int
+}

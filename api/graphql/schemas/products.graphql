@@ -6,6 +6,7 @@ type Product {
   stock: Int!
   price: Float!
   sku: String!
+  available: Boolean!
   coverImage: URL!
   images: [URL]!
   createdAt: String!
@@ -19,6 +20,7 @@ input ProductInput {
   price: Float!
   coverImage: URL!
   images: [URL]
+  available: Boolean!
 }
 
 type Query {
@@ -27,6 +29,12 @@ type Query {
 }
 
 type Mutation {
+  setAvailable(id: Int!, available: Boolean!): Product
+
+  stablishCoverImage(id: Int!, isRemoving: Boolean!, image: URL): Product
+  uploadProductImages(id: Int!, images: [URL!]!): Product
+  removeProductImages(id: Int!, imagesToDelete: [URL!]!): Product
+
   createProduct(input: ProductInput!): Product
   editProduct(id: Int!, input: ProductInput!): Product
   deleteProduct(id: Int!): Int

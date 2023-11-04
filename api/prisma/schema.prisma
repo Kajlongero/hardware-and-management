@@ -99,6 +99,7 @@ model Product {
   name       String
   stock      Int
   price      Float
+  discounts  Float[]
   sku        String    @default(uuid())
   coverImage String
   images     String[]
