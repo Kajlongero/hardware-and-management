@@ -15,7 +15,13 @@ const AuthResolver = {
         }
       });
 
-      ctx.error.notFound(customer, 'invalid customer token');
+      await ctx.error.notFound(customer, 'invalid customer token', { 
+        type: 'ERROR_WITH_USER_AUTH', 
+        description: 'invalid customer token',
+        statusCode: 404,
+        producedBy: 'USER',
+        aditionalInfo: 'customer not found in database'
+      });
 
       return customer;
     },
@@ -30,7 +36,13 @@ const AuthResolver = {
         }
       });
 
-      ctx.error.notFound(employee, 'invalid employee token');
+      await ctx.error.notFound(employee, 'invalid employee token', { 
+        type: 'ERROR_WITH_USER_AUTH', 
+        description: 'invalid employee token',
+        statusCode: 404,
+        producedBy: 'USER',
+        aditionalInfo: 'employee not found in database'
+      });
 
       return employee;
     }

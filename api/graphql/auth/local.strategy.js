@@ -6,26 +6,29 @@ const orm = new PrismaClient();
 
 const GqlCustomerStrategy = new GraphQLLocalStrategy(async (email, password, done) => {
   try{
-    const findEmail = await orm.auth.findUnique({
+    const findEmail = await orm.customer.findUnique({
       where: {
-        email,
+        auth: {
+          email,
+        },
+      },
+      include: {
+        auth: true,
       }
     });
 
     if(!findEmail) throw new Error('invalid credentials');
-    await comparePasswords(password, findEmail.password);
-
-    delete findEmail.password;
-    const userData = await orm.customer.findUnique({
-      where: {
-        authId: findEmail.id,
-      }
-    });
-
     
-    const user = {...userData, auth: { ...findEmail }};
-    console.log(user);
-    done(null, user);
+    const actual = new Date().getDate();
+    const timeToWait = new Date(findEmail.auth.secondsToLoginAgain);
+    
+    if(actual < findEmail.auth.secondsToLoginAgain)
+      throw new Error(`You need to wait until ${timeToWait} before login again`)
+
+    await comparePasswords(password, findEmail.auth.password, findEmail);
+
+    delete findEmail.auth.password;
+    done(null, findEmail);
   }catch(e){
     done(e, null);
   }
@@ -33,24 +36,29 @@ const GqlCustomerStrategy = new GraphQLLocalStrategy(async (email, password, don
 
 const GqlEmployeeStrategy = new GraphQLLocalStrategy(async (email, password, done) => {
   try{
-    const findEmail = await orm.auth.findUnique({
+    const findEmail = await orm.employee.findUnique({
       where: {
-        email,
+        auth: {
+          email
+        },
+      },
+      include: {
+        auth: true,
       }
     });
+
     if(!findEmail) throw new Error('invalid credentials');
-    await comparePasswords(password, findEmail.password);
-
-    delete findEmail.password;
-
-    const userData = await orm.employee.findUnique({
-      where: {
-        authId: findEmail.id,
-      }
-    });
     
-    const user = { ...userData, auth: findEmail };
-    done(null, user);
+    const actual = new Date().getDate();
+    const timeToWait = new Date(findEmail.auth.secondsToLoginAgain - actual);
+    
+    if(actual < findEmail.auth.secondsToLoginAgain)
+      throw new Error(`You need to wait until ${timeToWait} before login again`)
+
+    await comparePasswords(password, findEmail.auth.password, findEmail);
+
+    delete findEmail.auth.password;
+    done(null, findEmail);
   }catch(e){
     done(e, null);
   }

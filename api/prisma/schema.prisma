@@ -47,66 +47,126 @@ enum OrderStatus {
   ERROR
 }
 
+enum ClaimType {
+  RETURN
+  DAMAGED
+  BROKEN
+  NOT_WORKING
+  DEFECT
+  DONT_WANTED
+}
+
+enum ClaimStatus {
+  CANCELLED
+  PENDING
+  REVIEWING
+  COMPLETED
+  DELETED
+  IRRELEVANT
+  ARCHIVED
+  SEEN
+}
+
+enum LogType {
+  CREATED_USER_AUTH
+  CREATED_CUSTOMER
+  CREATED_EMPLOYEE
+  CREATED_ORDER
+  CREATED_PRODUCT
+  CREATED_PRODUCT_RETURNED
+  CREATED_PRODUCT_SELLED
+  EDITED_USER_AUTH
+  EDITED_CUSTOMER
+  EDITED_EMPLOYEE
+  EDITED_ORDER
+  EDITED_PRODUCT
+  EDITED_PRODUCT_RETURNED
+  EDITED_PRODUCT_SELLED
+  REMOVED_USER_AUTH
+  REMOVED_CUSTOMER
+  REMOVED_EMPLOYEE
+  REMOVED_ORDER
+  REMOVED_PRODUCT
+  REMOVED_PRODUCT_RETURNED
+  REMOVED_PRODUCT_SELLED
+  ERROR_WITH_USER_AUTH
+  ERROR_WITH_CUSTOMER
+  ERROR_WITH_EMPLOYEE
+  ERROR_WITH_ORDER
+  ERROR_WITH_PRODUCT
+  ERROR_WITH_PRODUCT_RETURNED
+  ERROR_WITH_PRODUCT_SELLED
+}
+
 model Employee {
-  id        Int            @id @default(autoincrement())
-  firstName String         @map("first_name")
-  lastName  String         @map("last_name")
-  address   String
-  birthDate DateTime?      @map("birth_date")
-  dni       Int
-  dniType   DNI_TYPES      @map("dni_type")
-  salary    Float
-  workDays  WORK_DAYS[]    @map("work_days")
-  charge    EMPLOYEE_ROLES
-  isActive  Boolean        @default(true) @map("active")
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime?      @default(now()) @updatedAt @map("updated_at")
-  firedAt   DateTime?      @map("fired_at")
-  authId    Int            @unique
-  auth      Auth           @relation(fields: [authId], references: [id])
-  Order     Order[]
+  id              Int               @id @default(autoincrement())
+  firstName       String            @map("first_name")
+  lastName        String            @map("last_name")
+  address         String
+  birthDate       DateTime?         @map("birth_date")
+  dni             Int
+  dniType         DNI_TYPES         @map("dni_type")
+  salary          Float
+  workDays        WORK_DAYS[]       @map("work_days")
+  charge          EMPLOYEE_ROLES
+  isActive        Boolean           @default(true) @map("active")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime?         @default(now()) @updatedAt @map("updated_at")
+  firedAt         DateTime?         @map("fired_at")
+  authId          Int               @unique
+  auth            Auth              @relation(fields: [authId], references: [id])
+  Order           Order[]
+  Products_Selled Products_Selled[]
 }
 
 model Customer {
-  id        Int       @id @default(autoincrement())
-  firstName String    @map("first_name")
-  lastName  String    @map("last_name")
-  address   String
-  dni       Int
-  dniType   DNI_TYPES @map("dni_type")
-  birthDate DateTime? @map("birth_date")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
-  authId    Int       @unique
-  auth      Auth      @relation(fields: [authId], references: [id])
-  Order     Order[]
+  id                Int                 @id @default(autoincrement())
+  firstName         String              @map("first_name")
+  lastName          String              @map("last_name")
+  address           String
+  dni               Int
+  dniType           DNI_TYPES           @map("dni_type")
+  birthDate         DateTime?           @map("birth_date")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime?           @default(now()) @updatedAt @map("updated_at")
+  authId            Int                 @unique
+  auth              Auth                @relation(fields: [authId], references: [id])
+  Order             Order[]
+  Products_Selled   Products_Selled[]
+  Products_Returned Products_Returned[]
+  Claim             Claim[]
 }
 
 model Auth {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  password  String
-  role      ROLES?     @default(CUSTOMER)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime?  @updatedAt
-  deletedAt DateTime?
-  Employee  Employee[]
-  Customer  Customer[]
+  id                  Int        @id @default(autoincrement())
+  email               String     @unique
+  password            String
+  loginAttempts       Int
+  secondsToLoginAgain Int        @default(0) @map("seconds_to_login_again")
+  role                ROLES?     @default(CUSTOMER)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime?  @updatedAt @map("updated_at")
+  deletedAt           DateTime?  @map("deleted_at")
+  Employee            Employee[]
+  Customer            Customer[]
 }
 
 model Product {
-  id         Int       @id @default(autoincrement())
-  name       String
-  stock      Int
-  price      Float
-  discounts  Float[]
-  sku        String    @default(uuid())
-  coverImage String
-  images     String[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime? @updatedAt
-  deletedAt  DateTime?
-  Order      Order[]
+  id                    Int                     @id @default(autoincrement())
+  name                  String
+  stock                 Int
+  price                 Float
+  discounts             Float[]
+  sku                   String                  @default(uuid())
+  coverImage            String
+  images                String[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime?               @updatedAt
+  deletedAt             DateTime?
+  Order                 Order[]
+  Products_Selled       Products_Selled[]
+  Products_Returned     Products_Returned[]
+  Products_Not_For_Sale Products_Not_For_Sale[]
 }
 
 model Order {
@@ -121,4 +181,62 @@ model Order {
   createdAt  DateTime    @default(now()) @map("created_at")
   updatedAt  DateTime?   @updatedAt @map("updated_at")
   deletedAt  DateTime?   @map("deleted_at")
+}
+
+model Products_Selled {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  productId  Int
+  customerId Int
+  product    Product   @relation(fields: [productId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime? @updatedAt @map("updated_at")
+  deletedAt  DateTime?
+  Claim      Claim?    @relation(fields: [claimId], references: [id])
+  claimId    String?
+}
+
+model Products_Returned {
+  id         Int       @id @default(autoincrement())
+  productId  Int
+  customerId Int
+  product    Product   @relation(fields: [productId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime? @updatedAt @map("updated_at")
+  deletedAt  DateTime?
+}
+
+model Products_Not_For_Sale {
+  id        Int         @id @default(autoincrement())
+  productId Int
+  product   Product     @relation(fields: [productId], references: [id])
+  reason    ClaimType[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  deletedAt DateTime?
+}
+
+model Logs {
+  id          String    @id @default(uuid())
+  contentPath String
+  type        LogType
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+}
+
+model Claim {
+  id         String            @id @default(uuid())
+  type       ClaimType
+  status     ClaimStatus       @default(PENDING)
+  content    String
+  subject    String
+  customerId Int
+  products   Products_Selled[]
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime?         @updatedAt @map("updated_at")
+  deletedAt  DateTime?         @map("deleted_at")
+  customer   Customer          @relation(fields: [customerId], references: [id])
 }

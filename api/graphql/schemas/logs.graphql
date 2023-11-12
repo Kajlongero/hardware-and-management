@@ -54,6 +54,5 @@ type Query {
 
 type Mutation {
   createLog(input: LogInput!): Logs
-  editLog(id: Int!, input: LogInput!): Logs
   deleteLog(id: Int!): Int
 }

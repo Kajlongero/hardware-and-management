@@ -82,8 +82,19 @@ const ClaimsResolver = {
     },
   },
   Mutation: {
-    createClaim: async () => {
+    createClaim: async (_, { input }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole('CUSTOMER', 'EMPLOYEE', 'OWNER');
 
+      const { customer } = input;
+
+      if(!chargeContain(user.ec, 'ADMINISTRATIVE'))
+        throw new Error('unauthorized');
+
+      if(user.cid !== customer.id || user.id !== customer.auth.id)
+        throw new Error('unauthhorized');
+
+      
     },
     editClaim: async () => {
 

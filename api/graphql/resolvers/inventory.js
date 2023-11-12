@@ -17,7 +17,24 @@ const InventoryResolver = {
     }
   }, 
   Mutation: {
-
+    sellProduct: async (_, { input }, ctx) => {
+      
+    },
+    returnProduct: async (_, { input }, ctx) => {
+      
+    },
+    editProductSell: async (_, { input, id }, ctx) => {
+      
+    },
+    editProductReturned: async (_, { input, id }, ctx) => {
+      
+    },
+    deleteProductSelled: async (_, { id }, ctx) => {
+      
+    },
+    deleteProductReturned: async (_, { id }, ctx) => {
+      
+    },
   }
 }
 

@@ -1,5 +1,7 @@
-const notFound = (condition, message) => {
-  if(!condition) throw new Error(message);
+const notFound = async (condition, message, { type, condition, statusCode, producedBy }) => {
+  if(!condition) {
+    const loc = await createLogJson()
+  }
 
   return true;
 }
