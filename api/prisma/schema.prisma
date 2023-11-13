@@ -141,7 +141,7 @@ model Auth {
   id                  Int        @id @default(autoincrement())
   email               String     @unique
   password            String
-  loginAttempts       Int
+  loginAttempts       Int        @default(0)
   secondsToLoginAgain Int        @default(0) @map("seconds_to_login_again")
   role                ROLES?     @default(CUSTOMER)
   createdAt           DateTime   @default(now()) @map("created_at")
@@ -170,27 +170,32 @@ model Product {
 }
 
 model Order {
-  id         Int         @id @default(autoincrement())
-  total      Float
-  status     OrderStatus @default(PENDING)
-  customerId Int
-  employeeId Int
-  products   Product[]
-  customer   Customer    @relation(fields: [customerId], references: [id])
-  employee   Employee    @relation(fields: [employeeId], references: [id])
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime?   @updatedAt @map("updated_at")
-  deletedAt  DateTime?   @map("deleted_at")
+  id                Int                 @id @default(autoincrement())
+  total             Float
+  status            OrderStatus         @default(PENDING)
+  products          Product[]
+  customerId        Int
+  employeeId        Int?
+  customer          Customer            @relation(fields: [customerId], references: [id])
+  employee          Employee?           @relation(fields: [employeeId], references: [id])
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime?           @updatedAt @map("updated_at")
+  deletedAt         DateTime?           @map("deleted_at")
+  Products_Selled   Products_Selled[]
+  Products_Returned Products_Returned[]
+  Claim             Claim[]
 }
 
 model Products_Selled {
   id         Int       @id @default(autoincrement())
-  employeeId Int
   productId  Int
   customerId Int
+  employeeId Int
+  orderId    Int
   product    Product   @relation(fields: [productId], references: [id])
   customer   Customer  @relation(fields: [customerId], references: [id])
   employee   Employee  @relation(fields: [employeeId], references: [id])
+  order      Order     @relation(fields: [orderId], references: [id])
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime? @updatedAt @map("updated_at")
   deletedAt  DateTime?
@@ -199,13 +204,16 @@ model Products_Selled {
 }
 
 model Products_Returned {
-  id         Int       @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   productId  Int
   customerId Int
-  product    Product   @relation(fields: [productId], references: [id])
-  customer   Customer  @relation(fields: [customerId], references: [id])
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime? @updatedAt @map("updated_at")
+  orderId    Int
+  reason     ClaimType[]
+  product    Product     @relation(fields: [productId], references: [id])
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  order      Order       @relation(fields: [orderId], references: [id])
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime?   @updatedAt @map("updated_at")
   deletedAt  DateTime?
 }
 
@@ -234,7 +242,9 @@ model Claim {
   content    String
   subject    String
   customerId Int
+  orderId    Int
   products   Products_Selled[]
+  order      Order             @relation(fields: [orderId], references: [id])
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime?         @updatedAt @map("updated_at")
   deletedAt  DateTime?         @map("deleted_at")

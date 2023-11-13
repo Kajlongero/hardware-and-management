@@ -1,5 +1,6 @@
 const { hashPassword } = require("../../functions/bcrypt.functions");
 const { verifyAuth, signToken } = require("../../functions/jwt.functions");
+const isOnList = require("../../functions/role.contains");
 const { checkRole } = require("../../middlewares/check.role");
 
 const CustomerResolver = {
@@ -16,6 +17,14 @@ const CustomerResolver = {
       return customers;
     },
     getUniqueCustomer: async (_, { id }, ctx) => {
+      const user = await verifyAuth(user);
+
+      if(user.role === 'CUSTOMER' && user.customerId !== id) 
+        throw new Error('unauthorized');
+
+      if(user.role !== 'CUSTOMER' && user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
       const findById = await ctx.db.orm.customer.findUnique({
         where: {
           id,
@@ -56,6 +65,16 @@ const CustomerResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'ADMIN');
 
+      const customer = await ctx.db.orm.customer.findUnique({
+        where: {
+          id,
+        },
+      });
+      ctx.error.notFound(customer, 'customer does not exists');
+
+      if(user.role === 'CUSTOMER' && user.cid !== id) 
+        throw new Error('unauthorized');
+
       const obj = {
         email: input.email,
         password: input.password,
@@ -64,44 +83,51 @@ const CustomerResolver = {
       delete input.email;
       delete input.password;
       
-      const customer = await ctx.db.orm.customer.findUnique({
-        where: {
-          id,
-        },
-      });
-      ctx.error.notFound(customer, 'customer does not exists');
-
-      if((user.cid !== customer.id) || (user.role !== 'ADMIN')) 
-        throw new Error('unauthorized');
-
       const { email, password } = obj;
       
       const updatedCustomer = await ctx.db.orm.customer.update({
         where: {
           id,
         },
-        ...input,
-        auth: (email || password) ?{
-          update: {
+        data: {
+          ...input,
+          auth: email || password ? {
             ...obj
-          }
-        } : undefined,
+          } : undefined,
+        },
+        include: {
+          auth: true,
+        }
       });
       return updatedCustomer;
     },
     deleteCustomer: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'ADMIN');
+      checkRole(user, 'CUSTOMER', 'OWNER', 'ADMIN');
 
       const customer = await ctx.db.orm.customer.findUnique({ where: { id } });
       ctx.error.notFound(customer, 'customer does not exists');
 
-      if((user.cid !== customer.id) || (user.role !== 'ADMIN')) 
+      if(user.role === 'CUSTOMER' && user.cid !== customer.id)
         throw new Error('unauthorized');
 
-      await ctx.db.orm.auth.delete({ where: { id: customer.authId } });
-      await ctx.db.orm.customer.delete({ where: { id } });
+      if(user.role !== 'CUSTOMER' && !isOnList(user.role, 'OWNER', 'ADMIN') && user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
 
+      await ctx.db.orm.customer.update({ 
+        where: { 
+          id 
+        },
+        data: {
+          deletedAt: new Date().toISOString(),
+          auth: {
+            deletedAt: new Date().toISOString(),
+          }
+        },
+        include: {
+          auth: true,
+        }
+      });
       return id;
     },
   },

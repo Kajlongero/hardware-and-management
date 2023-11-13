@@ -2,6 +2,9 @@ const { verifyAuth } = require("../../functions/jwt.functions");
 const { checkRole } = require("../../middlewares/check.role");
 const randomHash = require("../../functions/random.hash");
 const isOnList = require("../../functions/role.contains");
+const chargeContain = require("../../functions/charge.contains");
+const { PrismaClient } = require('@prisma/client');
+const orm = new PrismaClient();
 
 const OrderResolver = {
   Query: {
@@ -17,7 +20,6 @@ const OrderResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
 
-
       const order = await ctx.db.orm.order.findUnique({
         where: {
           id,
@@ -30,13 +32,34 @@ const OrderResolver = {
       });
       ctx.error.notFound(order, 'order does not exists');
 
-      if(user.cid !== order.customerId || user.eid !== order.employeeId || !isOnList(user.role, 'ADMIN', 'OWNER')) 
+      if(user.role === 'CUSTOMER' && user.cid !== order.customerId) 
         throw new Error('unauthorized');
-      
+
+      if(user.role === 'EMPLOYEE' && user.eid !== order.employeeId && user.ec !== 'ADMINISTRATIVE') 
+        throw new Error('unauthorized');
+
       return order;
     },
   },
   Mutation: {
+    processOrder: async (_, { id, status }) => {
+      const user = await verifyAuth(ctx);
+
+      if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
+        throw new Error('unauthorized');
+
+      const order = await tx.order.update({
+        where: {
+          id
+        },
+        data: {
+          employeeId: user.eid,
+          status: 'COMPLETED',
+        }
+      });
+
+      return order;
+    },
     setStatus: async (_, { id, status }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
@@ -49,11 +72,11 @@ const OrderResolver = {
 
       ctx.error.notFound(order, 'order does not exists');
 
-      if(
-        order.customerId !== user.cid && status !== 'CANCELLED' ||
-        order.employeeId !== user.eid ||
-        !isOnList(user.role, 'ADMIN', 'OWNER')
-      ) throw new Error('unauthorized');
+      if(user.role === 'CUSTOMER' && order.customerId === user.cid && status !== 'CANCELLED')
+        throw new Error('unauthorized');
+
+      if(order.employeeId !== user.eid) 
+        throw new Error('unauthorized');
 
       const orderUpdated = await ctx.db.orm.order.update({
         where: id,
@@ -68,23 +91,47 @@ const OrderResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
 
-      const products = [...input.products];
-      const productsId = products.map(p => ({ id: p.id }));
+      const { products } = input;
+
       let total = 0;
 
-      products.forEach(p => total += p.price);
+      const order = await orm.$transaction(async (tx) => { 
+        products.map(async (p) => {
+          const product = await tx.product.findUnique({ where: { id: p.id } });
 
-      const order = await ctx.db.orm.order.create({
-        data: {
-          total,
-          status: 'PENDING',
-          employeeId: input.employeeId,
-          customerId: input.customerId,
-          products: {
-            connect: [...productsId]
+          if(product.stock < p.quantity)
+            throw new Error(`Invalid order, product '${product.name}' stock is lower than quantity ordered`);
+
+          total += product.price;
+        });
+
+        const orderCreated = await ctx.db.tx.order.create({
+          data: {
+            total,
+            status: 'PENDING',
+            customerId: input.customerId,
+            products: {
+              connect: [...products.map(p => p.id)]
+            }
           }
-        }
-      });
+        });
+
+        products.map(async (p) => {
+          await tx.product.update({ 
+            where: { 
+              id: p.id 
+            }, 
+            data: { 
+              stock: { 
+                decrement: p.quantity
+              } 
+            } 
+          });
+        });
+
+        return orderCreated;
+      }); 
+
 
       return order;
     },
@@ -99,7 +146,7 @@ const OrderResolver = {
       });
       ctx.error.notFound(order, 'order does not exists');
 
-      if(order.employeeId !== user.eid || !isOnList(user.role, 'ADMIN', 'OWNER'))  
+      if(user.role === 'EMPLOYEE' && order.employeeId !== user.eid && user.ec !== 'ADMINISTRATIVE')  
         throw new Error('unauthorized');
 
       const orderUpdated = await ctx.db.orm.order.update({
@@ -125,12 +172,18 @@ const OrderResolver = {
 
       ctx.error.notFound(order, 'order does not exists');
 
-      if(order.customerId !== user.cid || order.employeeId !== user.eid || !isOnList(user.role, 'ADMIN', 'OWNER')) 
+      if(user.role === 'CUSTOMER' && user.cid !== order.customerId)
+        throw new Error('unauthorized');
+
+      if(user.role === 'EMPLOYEE' && order.employeeId !== user.eid && user.ec !== 'ADMINISTRATIVE')  
         throw new Error('unauthorized');
     
-      await ctx.db.orm.order.delete({
+      await ctx.db.orm.order.update({
         where: {
           id,
+        },
+        data: {
+          deleteAt: new Date().toISOString(), 
         }
       });
 

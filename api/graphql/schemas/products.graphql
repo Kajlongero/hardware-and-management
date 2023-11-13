@@ -14,6 +14,11 @@ type Product {
   deletedAt: String
 }
 
+type ProductQuantity {
+  product: Product!
+  quantity: Int!
+}
+
 input ProductInput {
   name: String!
   stock: Int!
@@ -21,6 +26,11 @@ input ProductInput {
   coverImage: URL!
   images: [URL]
   available: Boolean!
+}
+
+input ProductWithQuantityInput {
+  id: Int!
+  quantity: Int!
 }
 
 type Query {

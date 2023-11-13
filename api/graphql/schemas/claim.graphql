@@ -18,12 +18,19 @@ enum ClaimStatus {
   SEEN
 }
 
+enum ClaimWillDo {
+  REJECT
+  CHANGE_PRODUCTS
+  RETURN_MONEY
+}
+
 type Claims {
   id: Int!
   type: ClaimType!
   status: ClaimStatus!
   content: String!
   subject: String!
+  order: Order!
   customer: Customer!
   products: [Product!]!
   createdAt: String!
@@ -36,7 +43,7 @@ input ClaimInput {
   status: ClaimStatus!
   content: String!
   subject: String!
-  customer: Int!
+  orderId: Int!
   products: [Int!]!
 }
 
@@ -52,7 +59,9 @@ type Query {
 type Mutation {
   editClaimType(id: Int!, type: ClaimType!): Claims
   editClaimStatus(id: Int!, type: ClaimStatus!): Claims
+  # sendMessage(claimId: Int!, )
 
+  processClaim(id: Int!, action: ClaimWillDo!): Claims
   createClaim(input: ClaimInput!): Claims
   editClaim(id: Int!, input: ClaimInput): Claims
   deleteClaim(id: Int!): Int

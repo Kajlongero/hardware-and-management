@@ -9,6 +9,9 @@ const employeeResolver = {
       const user = verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
 
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
       const employee = await ctx.db.orm.employee.findMany({
         include: {
           auth: true,
@@ -39,9 +42,10 @@ const employeeResolver = {
   Mutation: {
     createEmployee: async (_, { input }, ctx) => {
       try {
-        const { email, password } = input;
         const user = await verifyAuth(ctx);
         checkRole(user, 'OWNER');
+
+        const { email, password } = input;
         
         const hash = await hashPassword(password);
         const obj = { email, password: hash };
@@ -62,7 +66,7 @@ const employeeResolver = {
             auth: true,
           }
         }); 
-
+        
         return signToken(employee);
       }catch(e){
         throw new Error(e.message);
@@ -71,7 +75,10 @@ const employeeResolver = {
     editEmployee: async (_, { id, input }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
-      
+
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
       const employee = await ctx.db.orm.employee.findUnique({
         where: {
           authId: id,
@@ -100,14 +107,29 @@ const employeeResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
 
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
       const employee = await ctx.db.orm.employee.findUnique({ where: { id } });
       ctx.error.notFound(employee, 'employee does not exists');
 
       if(isOnList(user.role, 'ADMIN', 'OWNER')) 
         throw new Error('unauthorized');
 
-      await ctx.db.orm.auth.delete({ where: { id: employee.authId } });
-      await ctx.db.orm.employee.delete({ where: { id } });
+      const employeeDeleted = await ctx.db.orm.employee.update({
+        where: {
+          id
+        },
+        data: {
+          deletedAt: new Date().toISOString(),
+          auth: {
+            deletedAt: new Date().toISOString(),
+          }
+        },
+        include: {
+          auth: true,
+        },
+      })
 
       return id;
     },

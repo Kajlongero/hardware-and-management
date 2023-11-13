@@ -1,6 +1,7 @@
 const { verifyAuth } = require("../../functions/jwt.functions");
 const { checkRole } = require("../../middlewares/check.role");
 const randomHash = require("../../functions/random.hash");
+const chargeContain = require("../../functions/charge.contains");
 
 const ProductResolver = {
   Query: {
@@ -28,6 +29,9 @@ const ProductResolver = {
       const user = await verifyAuth(ctx);
       checkRole(user, 'EMPLOYEE', 'OWNER');
 
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
       const productWithHash = {
         ...input,
         sku: randomHash(input.name),
@@ -44,6 +48,9 @@ const ProductResolver = {
     editProduct: async (_, { id, input }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'EMPLOYEE', 'OWNER');
+
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
 
       const product = await ctx.db.orm.product.findUnique({
         where: {
@@ -66,6 +73,9 @@ const ProductResolver = {
     deleteProduct: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'EMPLOYEE', 'OWNER');
+
+      if(user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
 
       await ctx.db.orm.product.delete({
         where: {

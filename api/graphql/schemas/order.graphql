@@ -19,7 +19,7 @@ type Order {
 }
 
 input OrderInput {
-  products: [ProductInput!]!
+  products: [ProductWithQuantityInput!]!
   customerId: Int!
   employeeId: Int!
 }
@@ -31,6 +31,7 @@ type Query {
 
 type Mutation {
   setStatus(id: Int!, status: OrderStatus!): Order
+  processOrder(id: Int)
 
   createOrder(input: OrderInput!): Order
   editOrder(input: OrderInput!): Order

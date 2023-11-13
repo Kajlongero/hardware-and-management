@@ -7,29 +7,29 @@ const ClaimsResolver = {
   Query: {
     getAllClaims: async (_, {}, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'EMPLOYEE', 'OWNER', 'ADMIN');
+      checkRole(user, 'OWNER', 'ADMIN');
 
       if(!chargeContain(user.ec, 'ADMINISTRATIVE')) 
         throw new Error('unauthorized');
 
-      const claims = await ctx.db.orm.claim.findMany();
+      const claims = await ctx.db.orm.claim.findMany({});
       return claims;
     },
     getUniqueClaim: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
+      checkRole(user,  'CUSTOMER', 'EMPLOYEE', 'OWNER');
       
       const claim = await ctx.db.orm.claim.findUnique({
         where: {
           id,
         }
       });
+      if(!claim || claim.deletedAt !== null) ctx.error.notFound('order not found');
 
-      if(
-        claim.customerId !== user.cid ||  
-        !chargeContain(user.ec, 'ADMINISTRATIVE') ||
-        !isOnList(user, 'OWNER', 'ADMIN')
-      ) 
+      if(user.role === 'CUSTOMER' && user.cid !== id)
         throw new Error('unauthorized');
+
+      if(user.role !== 'CUSTOMER' && !chargeContain(user.ec, 'ADMINISTRATIVE')); 
 
       return claim;
     },
@@ -40,7 +40,7 @@ const ClaimsResolver = {
       if(!chargeContain(user.ec, 'ADMINISTRATIVE')) 
         throw new Error('unauthorized');
 
-      const claims = await ctx.db.orm.claim.findUnique({
+      const claims = await ctx.db.orm.claim.findMany({
         where: {
           status,
         }
@@ -49,13 +49,13 @@ const ClaimsResolver = {
       return claims;
     },
     getClaimsByType: async (_, { type }, ctx) => {
-      const user = await verifyAuth(ctx);
+      const { user: user, ec } = await verifyAuth(ctx);
       checkRole(user, 'EMPLOYEE', 'OWNER', 'ADMIN');
 
-      if(!chargeContain(user.ec, 'ADMINISTRATIVE')) 
+      if(!chargeContain(ec, 'ADMINISTRATIVE')) 
         throw new Error('unauthorized');
 
-      const claims = await ctx.db.orm.claim.findUnique({
+      const claims = await ctx.db.orm.claim.findMany({
         where: {
           type,
         }
@@ -63,44 +63,114 @@ const ClaimsResolver = {
 
       return claims;
     },
-    getClaimsByCustomer: async (_) => {
-      const user = await verifyAuth(ctx);
+    getClaimsByCustomer: async (_, { id }, ctx) => {
+      const { user: user, role, ec, cid } = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER')
       
+      if(role === 'CUSTOMER' && cid !== id)
+        throw new Error('unauthorized');
+
+      if(role !== 'CUSTOMER' && !isOnList(ec, 'ADMINISTRATIVE'))
+        throw new Error('unauthorized');
+
       const claims = await ctx.db.orm.claim.findMany({
         where: {
-          customerId: user.cid,
+          customerId: id,
         }
       });
-
-      if(
-        !chargeContain(user.ec, 'ADMINISTRATIVE') ||
-        !isOnList(user, 'OWNER', 'ADMIN')
-      )
-        throw new Error('unauthorized');
 
       return claims;
     },
   },
   Mutation: {
     createClaim: async (_, { input }, ctx) => {
-      const user = await verifyAuth(ctx);
-      checkRole('CUSTOMER', 'EMPLOYEE', 'OWNER');
+      const {user: user, cid } = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER');
 
-      const { customer } = input;
+      const { type, status, content, subject, orderId, products } = input;
 
-      if(!chargeContain(user.ec, 'ADMINISTRATIVE'))
+      const order = await ctx.db.orm.order.findUnique({
+        where: {
+          id: orderId,  
+        }
+      });
+
+      if(!order) 
+        ctx.error.notFound('order does not exists');
+
+      const claim = await ctx.db.orm.claim.create({
+        data: {
+          type,
+          status,
+          content,
+          subject,
+          customerId: cid,
+          products: {
+            connect: [...products]
+          }
+        }
+      });
+
+      return claim;
+    },
+    editClaim: async (_, { id, input }, ctx) => {
+      const { user: user, cid, role } = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
+
+      const claim = await ctx.db.orm.claim.findUnique({
+        where: {
+          id,
+        }
+      });
+      if(!claim || claim.deletedAt !== null) ctx.error.notFound('order not found');
+
+      if(role === 'CUSTOMER' && claim.customerId !== cid)
+        throw new Error('unauthorized');
+    
+      if(role === 'CUSTOMER' && status && !isOnList(status, 'PENDING', 'CANCELLED', 'DELETED'))
         throw new Error('unauthorized');
 
-      if(user.cid !== customer.id || user.id !== customer.auth.id)
-        throw new Error('unauthhorized');
-
+      const { status } = input;
       
+      const edited = await ctx.db.orm.claim.update({
+        where: {
+          id,
+        },
+        data: {
+          ...input,
+        },
+        include: {
+          products: true,
+          customer: true,
+        }
+      });
+      
+      return edited;
     },
-    editClaim: async () => {
+    deleteClaim: async (_, { id }, ctx) => {  
+      const { user: user, cid, role } = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
 
-    },
-    deleteClaim: async () => {
+      const claim = await ctx.db.orm.claim.findUnique({
+        where: {
+          id,
+        }
+      });
+      if(!claim || claim.deletedAt !== null) ctx.error.notFound('order not found');
+      
+      if(role === 'CUSTOMER' && claim.customerId !== cid)
+        throw new Error('unauthorized');
+  
+      await ctx.db.orm.claim.update({
+        where: {
+          id,
+        },
+        data: {
+          deletedAt: new Date().toISOString(),
+        }
+      })
 
+      return id;
     },
     editClaimType: async () => {
 
