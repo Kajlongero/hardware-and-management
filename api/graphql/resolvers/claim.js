@@ -29,7 +29,8 @@ const ClaimsResolver = {
       if(user.role === 'CUSTOMER' && user.cid !== id)
         throw new Error('unauthorized');
 
-      if(user.role !== 'CUSTOMER' && !chargeContain(user.ec, 'ADMINISTRATIVE')); 
+      if(user.role !== 'CUSTOMER' && !chargeContain(user.ec, 'ADMINISTRATIVE'))
+        throw new Error('unauthorized');
 
       return claim;
     },
@@ -168,15 +169,9 @@ const ClaimsResolver = {
         data: {
           deletedAt: new Date().toISOString(),
         }
-      })
+      });
 
       return id;
-    },
-    editClaimType: async () => {
-
-    },
-    editClaimStatus: async () => {
-
     },
   },
 }

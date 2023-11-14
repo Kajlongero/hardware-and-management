@@ -42,23 +42,93 @@ const OrderResolver = {
     },
   },
   Mutation: {
-    processOrder: async (_, { id, status }) => {
+    processOrder: async (_, { id, status, reason }) => {
       const user = await verifyAuth(ctx);
 
       if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
         throw new Error('unauthorized');
 
-      const order = await tx.order.update({
-        where: {
-          id
-        },
-        data: {
-          employeeId: user.eid,
-          status: 'COMPLETED',
-        }
-      });
+      const orderProcessed = await ctx.db.orm.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: {
+            id,
+          },
+          include: {
+            products: true,
+          }
+        })
+        const productOrder = [...order.products];
+        
+        if(optionSelected === 'COMPLETED') {
+          const toMove = [];
 
-      return order;
+          productOrder.map(p => {
+            if(toMove.some(pr => pr.productId === p.id)) 
+              return null;
+            
+            toMove.push({
+              quantity: productOrder.filter(product => product.id).length,
+              productId: p.id,
+              customerId: user.cid,
+              employeerId: user.eid,
+              orderId: order.id,
+            })
+          })
+
+          const movedProducts = await tx.products_selled.createMany({
+            data: toMove,
+          });
+
+          await tx.ticket.create({
+            data: {
+              employeeId: user.eid,
+              customerId: order.customerId,
+              total: order.total,
+              orderId: order.id,
+              payment: order.payment,
+            }
+          });
+        } 
+
+        if(status === 'CANCELLED') {
+
+          const filterUnique = [];
+          
+          productOrder.map((p) => {
+            if(filterUnique.some(pr => pr.id === p.id))
+              return null;
+
+            filterUnique.push(p);
+          });
+
+          filterUnique.forEach(async (p) => {
+            await tx.product.update({
+              where: {
+                id: p.id
+              },
+              data: {
+                stock: {
+                  increment: p.quantity,
+                } 
+              }
+            })
+          });
+        }
+
+        const orderUpdated = await tx.order.update({
+          where: {
+            id
+          },
+          data: {
+            employeeId: user.eid,
+            status: optionSelected,
+            processInfo: status === 'COMPLETED' ? 'processed successfully' : reason,
+          }
+        });
+        return orderUpdated;
+      })
+
+      return orderProcessed;
     },
     setStatus: async (_, { id, status }, ctx) => {
       const user = await verifyAuth(ctx);

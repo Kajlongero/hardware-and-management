@@ -67,6 +67,14 @@ enum ClaimStatus {
   SEEN
 }
 
+enum PaymentMethod {
+  MOBILE_PAY
+  TRANSFERENCE
+  CASH
+  DEBIT
+  CREDIT
+}
+
 enum LogType {
   CREATED_USER_AUTH
   CREATED_CUSTOMER
@@ -117,6 +125,7 @@ model Employee {
   auth            Auth              @relation(fields: [authId], references: [id])
   Order           Order[]
   Products_Selled Products_Selled[]
+  Ticket          Ticket[]
 }
 
 model Customer {
@@ -176,6 +185,7 @@ model Order {
   products          Product[]
   customerId        Int
   employeeId        Int?
+  paymentMethod     PaymentMethod
   customer          Customer            @relation(fields: [customerId], references: [id])
   employee          Employee?           @relation(fields: [employeeId], references: [id])
   createdAt         DateTime            @default(now()) @map("created_at")
@@ -184,10 +194,27 @@ model Order {
   Products_Selled   Products_Selled[]
   Products_Returned Products_Returned[]
   Claim             Claim[]
+  Ticket            Ticket[]
+}
+
+model Ticket {
+  id         Int               @id @default(autoincrement())
+  total      Float
+  employeeId Int
+  customerId Int
+  orderId    Int
+  payment    PaymentMethod
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+  products   Products_Selled[]
+  employee   Employee          @relation(fields: [employeeId], references: [id])
+  order      Order             @relation(fields: [orderId], references: [id])
+  Claim      Claim[]
 }
 
 model Products_Selled {
   id         Int       @id @default(autoincrement())
+  quantity   Int
   productId  Int
   customerId Int
   employeeId Int
@@ -201,6 +228,7 @@ model Products_Selled {
   deletedAt  DateTime?
   Claim      Claim?    @relation(fields: [claimId], references: [id])
   claimId    String?
+  Ticket     Ticket[]
 }
 
 model Products_Returned {
@@ -242,11 +270,13 @@ model Claim {
   content    String
   subject    String
   customerId Int
-  orderId    Int
+  ticketId   Int
   products   Products_Selled[]
-  order      Order             @relation(fields: [orderId], references: [id])
+  ticket     Ticket            @relation(fields: [ticketId], references: [id])
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime?         @updatedAt @map("updated_at")
   deletedAt  DateTime?         @map("deleted_at")
   customer   Customer          @relation(fields: [customerId], references: [id])
+  Order      Order?            @relation(fields: [orderId], references: [id])
+  orderId    Int?
 }
