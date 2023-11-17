@@ -9,6 +9,9 @@ const ProductResolver = {
       const products = await ctx.db.orm.product.findMany({
         take: take ?? 30,
         step,
+        where: {
+          available: true,
+        }
       });
 
       return products;

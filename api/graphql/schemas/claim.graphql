@@ -1,12 +1,3 @@
-enum ClaimType {
-  RETURN
-  DAMAGED
-  BROKEN
-  NOT_WORKING
-  DEFECT
-  DONT_WANTED
-}
-
 enum ClaimStatus {
   CANCELLED
   PENDING
@@ -15,7 +6,6 @@ enum ClaimStatus {
   DELETED
   IRRELEVANT
   ARCHIVED
-  SEEN
 }
 
 enum ClaimWillDo {
@@ -59,9 +49,11 @@ type Query {
 type Mutation {
   editClaimType(id: Int!, type: ClaimType!): Claims
   editClaimStatus(id: Int!, type: ClaimStatus!): Claims
-  # sendMessage(claimId: Int!, )
+  sendMessage(input: ClaimMessageInput!, claimId: Int!): ClaimMessageInput
 
-  processClaim(id: Int!, action: ClaimWillDo!): Claims
+  changeProductsClaim(id: Int!): Ticket
+  returnMoney(id: Int!, action: ClaimWillDo!): Claims
+
   createClaim(input: ClaimInput!): Claims
   editClaim(id: Int!, input: ClaimInput): Claims
   deleteClaim(id: Int!): Int

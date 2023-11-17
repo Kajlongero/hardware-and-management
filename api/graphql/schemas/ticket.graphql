@@ -1,0 +1,43 @@
+type Ticket {
+  id: Int!
+  amount: Float!
+  employee: Employee!
+  customer: Customer!
+  products: [ProductsSelled!]!
+  order: Order
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+enum PaymentMethod {
+  MOBILE_PAY
+  TRANSFERENCE
+  CASH
+  DEBIT
+  CREDIT
+  CHARGED_MONEY
+}
+
+input TicketInput {
+  amount: Float!
+  employeeId: Int!
+  customerId: Int!
+  products: [Int!]!
+  orderId: Int!
+}
+
+type Query {
+  getAllTickets(step: Int, take: Int): [Ticket!]!
+  getUniqueTicket(id: Int!): Ticket
+
+  getTicketsByCustomer(customerId: Int!): [Ticket!]!
+}
+
+type Mutation {
+  employeeCreateTicket(input: TicketInput!): Ticket
+
+  createTicket(input: TicketInput!): Ticket
+  editTicket(id: Int!, input: TicketInput!): Ticket
+  deleteTicket(id: Int!): Int
+}

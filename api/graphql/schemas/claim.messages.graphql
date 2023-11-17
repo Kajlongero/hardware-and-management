@@ -1,0 +1,36 @@
+scalar URL
+
+type ClaimMessages {
+  id: String!
+  content: String!
+  images: [URL!]
+  seen: Boolean!
+  user: Auth!
+  claim: Claims
+  createdAt: String!
+  updatedAt: String
+  deletedAt: String
+}
+
+type ClaimMessageInput {
+  content: String!
+  claimId: Int!
+  images: [URL!]
+}
+
+type Query {
+  getMessagesByClaimId(claimId: Int!): [ClaimMessages!]!
+  getUniqueMessage(id: String!): ClaimMessages!
+
+  getAllImagesOnClaim(claimId: Int!): [URL!]!
+
+  getMessagesByUser(authId: Int!): [ClaimMessages!]!
+}
+
+type Mutation {
+  setSeenMessages(messagesId: [String!]!): [ClaimMessages!]!
+
+  createMessage(input: ClaimMessageInput!): ClaimMessages
+  editMessage(input: ClaimMessageInput!): EditMessage
+  deleteMessage(id: String!): String!
+}

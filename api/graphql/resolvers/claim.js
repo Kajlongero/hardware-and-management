@@ -114,6 +114,48 @@ const ClaimsResolver = {
 
       return claim;
     },
+    returnMoney: async (_, { id }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole(user, 'EMPLOYEE', 'OWNER');
+
+      if(user.ec !== 'ADMINISTRATIVE') 
+        throw new Error('unauthorized');
+
+      const ticket = await ctx.db.orm.ticket.findUnique({
+        where: {
+          id,
+        },
+        select: {
+          id: true,
+          products: {
+            select: {
+              id: true,
+              quantity: true,
+            }
+          },
+          order: {
+            id: true,
+            customer: {
+              id: true,
+            }
+          }
+        }
+      });
+
+      const { products, order: { id: orderId, customer: customerId } } = ticket;
+
+      const returnedMoney = await ctx.db.orm.$transaction(async (tx) => {
+
+          
+
+
+      });
+
+      return returnedMoney;
+    },
+    changeProducts: async (_, { id }, ctx) => {
+
+    },
     editClaim: async (_, { id, input }, ctx) => {
       const { user: user, cid, role } = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');

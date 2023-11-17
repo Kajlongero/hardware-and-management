@@ -14,3 +14,12 @@ enum WORK_DAYS {
   FRIDAY
   SATURDAY
 }
+
+enum ClaimType {
+  RETURN
+  DAMAGED
+  BROKEN
+  NOT_WORKING
+  DEFECT
+  DONT_WANTED
+}

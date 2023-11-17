@@ -1,18 +1,16 @@
 const { verifyAuth } = require("../../functions/jwt.functions");
 const { checkRole } = require("../../middlewares/check.role");
-const randomHash = require("../../functions/random.hash");
-const isOnList = require("../../functions/role.contains");
-const chargeContain = require("../../functions/charge.contains");
-const { PrismaClient } = require('@prisma/client');
-const orm = new PrismaClient();
 
 const OrderResolver = {
   Query: {
-    getAllOrders: async (_, {}, ctx) => {
+    getAllOrders: async (_, { step, take }, ctx) => {
       const user = await verifyAuth(ctx);
       checkRole(user, 'ADMIN', 'OWNER');
 
-      const orders = await ctx.db.orm.order.findMany();
+      const orders = await ctx.db.orm.order.findMany({
+        take: take ?? 30,
+        step,
+      });
 
       return orders;
     },
@@ -40,9 +38,87 @@ const OrderResolver = {
 
       return order;
     },
+    getOrdersByStatus: async (_, { status }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole(user, 'CUSTOMER');
+
+      const orders = await ctx.db.orm.order.findMany({
+        take: take ?? 30,
+        step,
+        where: {
+          customerId: user.cid,
+          status,
+        }
+      });
+
+      return orders;
+    }
   },
   Mutation: {
-    processOrder: async (_, { id, status, reason }) => {
+    completeOrder: async (_, { id }, ctx) => {
+      const user = await verifyAuth(ctx);
+      if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
+        throw new Error('unauthorized');
+
+      const orderProcessed = await ctx.db.orm.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: {
+            id,
+          },
+          include: {
+            products: true,
+            customer: true,
+          }
+        });
+
+        if(orderProcessed.customer.deletedAt !== null) 
+          throw new Error('Cannot complete because, customer was deleted');
+
+        const productOrder = [...order.products];
+        const toMove = [];
+
+        productOrder.map(p => {
+          if(toMove.some(pr => pr.productId === p.id)) 
+            return null;
+          
+          toMove.push({
+            quantity: productOrder.filter(product => product.id).length,
+            productId: p.id,
+            customerId: user.cid,
+            employeerId: user.eid,
+            orderId: order.id,
+          });
+        });
+
+        await tx.products_selled.createMany({
+          data: toMove,
+        });
+
+        await tx.ticket.create({
+          data: {
+            employeeId: user.eid,
+            customerId: order.customerId,
+            amount: order.total,
+            orderId: order.id,
+            payment: order.payment,
+          }
+        });
+        const orderUpdated = await tx.order.update({
+          where: {
+            id
+          },
+          data: {
+            employeeId: user.eid,
+            status: 'COMPLETED',
+            processInfo: 'Order processed successfully',
+          }
+        });
+        
+        return orderUpdated;
+      });
+      return orderProcessed;
+    },
+    cancelOrder: async (_, { id, reason }, ctx) => {
       const user = await verifyAuth(ctx);
 
       if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
@@ -56,64 +132,29 @@ const OrderResolver = {
           include: {
             products: true,
           }
-        })
+        });
         const productOrder = [...order.products];
-        
-        if(optionSelected === 'COMPLETED') {
-          const toMove = [];
+        const filterUnique = [];
 
-          productOrder.map(p => {
-            if(toMove.some(pr => pr.productId === p.id)) 
-              return null;
-            
-            toMove.push({
-              quantity: productOrder.filter(product => product.id).length,
-              productId: p.id,
-              customerId: user.cid,
-              employeerId: user.eid,
-              orderId: order.id,
-            })
-          })
+        productOrder.map((p) => {
+          if(filterUnique.some(pr => pr.id === p.id))
+            return null;
+          filterUnique.push(p);
+        });
 
-          const movedProducts = await tx.products_selled.createMany({
-            data: toMove,
-          });
-
-          await tx.ticket.create({
+        filterUnique.forEach(async (p) => {
+          await tx.product.update({
+            where: {
+              id: p.id
+            },
             data: {
-              employeeId: user.eid,
-              customerId: order.customerId,
-              total: order.total,
-              orderId: order.id,
-              payment: order.payment,
-            }
-          });
-        } 
-
-        if(status === 'CANCELLED') {
-
-          const filterUnique = [];
-          
-          productOrder.map((p) => {
-            if(filterUnique.some(pr => pr.id === p.id))
-              return null;
-
-            filterUnique.push(p);
-          });
-
-          filterUnique.forEach(async (p) => {
-            await tx.product.update({
-              where: {
-                id: p.id
+              stock: {
+                increment: p.quantity,
               },
-              data: {
-                stock: {
-                  increment: p.quantity,
-                } 
-              }
-            })
-          });
-        }
+              available: true,
+            }
+          })
+        });
 
         const orderUpdated = await tx.order.update({
           where: {
@@ -121,13 +162,13 @@ const OrderResolver = {
           },
           data: {
             employeeId: user.eid,
-            status: optionSelected,
-            processInfo: status === 'COMPLETED' ? 'processed successfully' : reason,
+            status: 'CANCELLED',
+            processInfo: reason,
           }
         });
+        
         return orderUpdated;
-      })
-
+      });
       return orderProcessed;
     },
     setStatus: async (_, { id, status }, ctx) => {
@@ -169,7 +210,7 @@ const OrderResolver = {
         products.map(async (p) => {
           const product = await tx.product.findUnique({ where: { id: p.id } });
 
-          if(product.stock < p.quantity)
+          if(product.stock < p.quantity && !product.available)
             throw new Error(`Invalid order, product '${product.name}' stock is lower than quantity ordered`);
 
           total += product.price;
@@ -187,22 +228,29 @@ const OrderResolver = {
         });
 
         products.map(async (p) => {
-          await tx.product.update({ 
+          const { stock } = await tx.product.update({ 
             where: { 
               id: p.id 
             }, 
             data: { 
               stock: { 
                 decrement: p.quantity
-              } 
+              },
             } 
           });
+          if(stock - p.quantity <= 0)
+            await tx.product.update({ 
+              where: { 
+                id: p.id 
+              }, 
+              data: { 
+                available: stock - p.quantity <= 0 ? false : undefined,
+              } 
+            });
         });
 
         return orderCreated;
       }); 
-
-
       return order;
     },
     editOrder: async (_, { id, input }, ctx) => {
@@ -226,7 +274,7 @@ const OrderResolver = {
         data: {
           ...input,
         }
-      })
+      });
 
       return orderUpdated;
     },
@@ -260,17 +308,7 @@ const OrderResolver = {
       return id;
     }
   },
-  Order: {
-    customer: async (parent) => {
-      console.log(parent);
-    },
-    employee: async (parent) => {
-      console.log(parent);
-    },
-    products: async (parent) => {
-      console.log(parent);
-    }
-  }
+
 };
 
 module.exports = OrderResolver;

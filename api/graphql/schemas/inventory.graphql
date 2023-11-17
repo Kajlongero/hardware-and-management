@@ -52,14 +52,3 @@ type Query {
   productMostSelled: ProductsSelled
   productMostReturned: ProductsReturned
 }
-
-type Mutation {
-  sellProduct(input: ProductsSelledInput): ProductsSelled
-  returnProduct(input: ProductsReturnedInput): ProductsReturned
-
-  editProductSell(id: Int!, input: ProductsSelledInput): ProductsSelled
-  editProductReturned(id: Int!, input: ProductsReturnedInput): ProductsReturned
-
-  deleteProductSelled(id: Int!): Int
-  deleteProductReturned(id: Int!): Int
-}

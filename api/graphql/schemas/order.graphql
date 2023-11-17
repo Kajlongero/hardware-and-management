@@ -1,3 +1,5 @@
+scalar URL
+
 enum OrderStatus {
   CANCELLED
   COMPLETED
@@ -13,6 +15,9 @@ type Order {
   products: [Product!]!
   customer: Customer!
   employee: Employee!
+  payment: PaymentMethod!
+  capture: URL
+  reference: Int
   createdAt: String!
   updatedAt: String
   deletedAt: String
@@ -22,16 +27,26 @@ input OrderInput {
   products: [ProductWithQuantityInput!]!
   customerId: Int!
   employeeId: Int!
+  payment: PaymentMethod!
+  capture: URL
+  reference: Int
 }
 
 type Query {
-  getAllOrders: [Order]
+  # Employees only
+  getAllOrders(step: Int, take: Int): [Order]
+
+  # Customer Only
+  getOrdersByStatus(step: Int, take: Int, status: OrderStatus!): [Order]
+
+  # All
   getOrderById(id: Int!): Order
 }
 
 type Mutation {
   setStatus(id: Int!, status: OrderStatus!): Order
-  processOrder(id: Int)
+  completeOrder(id: Int): Ticket
+  cancelOrder(id: Int): Order
 
   createOrder(input: OrderInput!): Order
   editOrder(input: OrderInput!): Order

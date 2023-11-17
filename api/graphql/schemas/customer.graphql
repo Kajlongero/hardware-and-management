@@ -5,6 +5,7 @@ type Customer {
   address: String!
   dni: Int!
   dniType: DNI_TYPES!
+  money: Float!
   auth: Auth!
   createdAt: String!
   updatedAt: String
