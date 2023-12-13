@@ -52,6 +52,7 @@ enum ClaimType {
   DONT_WANTED
   DAMAGED
   BROKEN
+  PROBLEM
   NOT_WORKING
   DEFECT
 }
@@ -74,6 +75,12 @@ enum PaymentMethod {
   DEBIT
   CREDIT
   BALANCE
+}
+
+enum ClaimAction {
+  REJECT
+  RETURN_MONEY
+  CHANGE_PRODUCTS
 }
 
 enum LogType {
@@ -150,6 +157,8 @@ model Customer {
   Products_Returned Products_Returned[]
   Claim             Claim[]
   Claim_Messages    Claim_Messages[]
+  Ticket            Ticket[]
+  Claimed_Products  Claimed_Products[]
 }
 
 model Auth {
@@ -167,7 +176,7 @@ model Auth {
 }
 
 model Product {
-  id                    Int                     @id @default(autoincrement())
+  id                    String                  @id @default(uuid())
   name                  String
   stock                 Int
   price                 Float
@@ -181,48 +190,49 @@ model Product {
   deletedAt             DateTime?               @map("deleted_at")
   Order                 Order[]
   Products_Selled       Products_Selled[]
-  Products_Returned     Products_Returned[]
   Products_Not_For_Sale Products_Not_For_Sale[]
-  Products_Changed      Products_Changed[]
 }
 
 model Products_Selled {
-  id         Int       @id @default(autoincrement())
-  quantity   Int
-  productId  Int
-  customerId Int
-  employeeId Int
-  orderId    Int
-  claimId    Int?
-  product    Product   @relation(fields: [productId], references: [id])
-  customer   Customer  @relation(fields: [customerId], references: [id])
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  order      Order     @relation(fields: [orderId], references: [id])
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime? @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
-  Claim      Claim?    @relation(fields: [claimId], references: [id])
-  Ticket     Ticket[]
+  id                String              @id @default(uuid())
+  quantity          Int
+  productId         String
+  customerId        Int
+  employeeId        Int
+  ticketId          Int
+  Ticket            Ticket              @relation(fields: [ticketId], references: [id])
+  product           Product             @relation(fields: [productId], references: [id])
+  customer          Customer            @relation(fields: [customerId], references: [id])
+  employee          Employee            @relation(fields: [employeeId], references: [id])
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime?           @updatedAt @map("updated_at")
+  deletedAt         DateTime?           @map("deleted_at")
+  Claimed_Products  Claimed_Products[]
+  Products_Returned Products_Returned[]
+  Products_Changed  Products_Changed[]
 }
 
 model Products_Returned {
-  id         Int         @id @default(autoincrement())
-  productId  Int
+  id         String          @id @default(uuid())
+  productId  String
   customerId Int
-  orderId    Int
+  ticketId   Int
+  claimId    Int
   quantity   Int
-  reason     ClaimType[]
-  product    Product     @relation(fields: [productId], references: [id])
-  customer   Customer    @relation(fields: [customerId], references: [id])
-  order      Order       @relation(fields: [orderId], references: [id])
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime?   @updatedAt @map("updated_at")
-  deletedAt  DateTime?   @map("deleted_at")
+  reason     ClaimType
+  product    Products_Selled @relation(fields: [productId], references: [id])
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  claim      Claim           @relation(fields: [claimId], references: [id])
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime?       @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+  Ticket     Ticket          @relation(fields: [ticketId], references: [id])
 }
 
 model Products_Not_For_Sale {
-  id        Int         @id @default(autoincrement())
-  productId Int
+  id        String      @id @default(uuid())
+  quantity  Int
+  productId String
   product   Product     @relation(fields: [productId], references: [id])
   reason    ClaimType[]
   createdAt DateTime    @default(now()) @map("created_at")
@@ -231,75 +241,95 @@ model Products_Not_For_Sale {
 }
 
 model Products_Changed {
-  id         Int         @id @default(autoincrement())
-  orderId    Int
-  productId  Int
+  id         String          @id @default(uuid())
+  ticketId   Int
+  claimId    Int
   customerId Int
+  productId  String
   reason     ClaimType[]
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime?   @updatedAt @map("updated_at")
-  deletedAt  DateTime?   @map("deleted_at")
-  order      Order       @relation(fields: [orderId], references: [id])
-  product    Product     @relation(fields: [productId], references: [id])
-  customer   Customer    @relation(fields: [customerId], references: [id])
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime?       @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+  claim      Claim           @relation(fields: [claimId], references: [id])
+  ticket     Ticket          @relation(fields: [ticketId], references: [id])
+  product    Products_Selled @relation(fields: [productId], references: [id])
+  customer   Customer        @relation(fields: [customerId], references: [id])
 }
 
 model Order {
+  id              Int           @id @default(autoincrement())
+  total           Float
+  status          OrderStatus   @default(PENDING)
+  reasonForStatus String
+  paymentMethod   PaymentMethod
+  capture         String?
+  reference       String?
+  products        Product[]
+  customerId      Int
+  employeeId      Int?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime?     @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  Ticket          Ticket[]
+  Employee        Employee?     @relation(fields: [employeeId], references: [id])
+}
+
+model Ticket {
   id                Int                 @id @default(autoincrement())
-  total             Float
-  status            OrderStatus         @default(PENDING)
-  reasonForStatus   String
-  paymentMethod     PaymentMethod
-  capture           String?
-  reference         String?
-  products          Product[]
+  amount            Float
+  employeeId        Int
   customerId        Int
+  orderId           Int
+  payment           PaymentMethod
+  products          Products_Selled[]
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  deletedAt         DateTime            @map("deleted_at")
+  customer          Customer            @relation(fields: [customerId], references: [id])
+  employee          Employee            @relation(fields: [employeeId], references: [id])
+  order             Order               @relation(fields: [orderId], references: [id])
+  Claim             Claim[]
+  Claimed_Products  Claimed_Products[]
+  Products_Changed  Products_Changed[]
+  Products_Returned Products_Returned[]
+}
+
+model Claim {
+  id                Int                 @id @default(autoincrement())
+  type              ClaimType
+  status            ClaimStatus         @default(PENDING)
+  finalAction       ClaimAction
+  content           String
+  subject           String
+  products          Claimed_Products[]
+  customerId        Int
+  ticketId          Int
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime?           @updatedAt @map("updated_at")
   deletedAt         DateTime?           @map("deleted_at")
   customer          Customer            @relation(fields: [customerId], references: [id])
-  Products_Selled   Products_Selled[]
+  ticket            Ticket              @relation(fields: [ticketId], references: [id])
+  Claim_Messages    Claim_Messages[]
   Products_Returned Products_Returned[]
-  Claim             Claim[]
-  Ticket            Ticket[]
-  Employee          Employee?           @relation(fields: [employeeId], references: [id])
-  employeeId        Int?
   Products_Changed  Products_Changed[]
 }
 
-model Ticket {
-  id         Int               @id @default(autoincrement())
-  total      Float
-  employeeId Int
+model Claimed_Products {
+  id         String          @id @default(uuid())
+  quantity   Int
   customerId Int
-  orderId    Int
-  payment    PaymentMethod
-  createdAt  DateTime          @default(now()) @map("created_at")
-  updatedAt  DateTime          @updatedAt @map("updated_at")
-  deletedAt  DateTime          @map("deleted_at")
-  products   Products_Selled[]
-  employee   Employee          @relation(fields: [employeeId], references: [id])
-  order      Order             @relation(fields: [orderId], references: [id])
-  Claim      Claim[]
-}
-
-model Claim {
-  id             Int               @id @default(autoincrement())
-  type           ClaimType
-  status         ClaimStatus       @default(PENDING)
-  content        String
-  subject        String
-  customerId     Int
-  ticketId       Int
-  products       Products_Selled[]
-  ticket         Ticket            @relation(fields: [ticketId], references: [id])
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime?         @updatedAt @map("updated_at")
-  deletedAt      DateTime?         @map("deleted_at")
-  customer       Customer          @relation(fields: [customerId], references: [id])
-  Order          Order             @relation(fields: [orderId], references: [id])
-  orderId        Int
-  Claim_Messages Claim_Messages[]
+  ticketId   Int
+  claimId    Int
+  productId  String
+  reason     ClaimType
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime?       @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+  Claim      Claim           @relation(fields: [claimId], references: [id])
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  product    Products_Selled @relation(fields: [productId], references: [id])
+  ticket     Ticket          @relation(fields: [ticketId], references: [id])
 }
 
 model Claim_Messages {

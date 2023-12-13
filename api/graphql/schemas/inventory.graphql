@@ -11,7 +11,7 @@ type ProductsSelled {
 
 type ProductsReturned {
   id: Int!
-  product: Product!
+  product: ProductsSelled!
   customer: Customer!
   reason: ClaimType!
   createdAt: String!
@@ -29,17 +29,15 @@ type ProductsNotForSale {
   deletedAt: String
 }
 
-input ProductsSelledInput {
-  product: Int!
-  customer: Int!
-  employee: Int!
+input MoveReturned {
+  id: String!
   quantity: Int!
+  reason: ClaimType!
 }
 
-input ProductsReturnedInput {
-  product: Product!
-  customer: Customer!
-  reason: ClaimType!
+input MoveNotForSale {
+  id: String!
+  quantity: Int!
 }
 
 type Query {
@@ -51,4 +49,9 @@ type Query {
 
   productMostSelled: ProductsSelled
   productMostReturned: ProductsReturned
+}
+
+type Mutation {
+  moveProductsFromReturnedToNotForSale(products: [MoveReturned!]!): String!
+  moveProductsFromNotForSaleToNormal(products: [MoveNotForSale!]!): String!
 }

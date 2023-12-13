@@ -1,9 +1,5 @@
-const notFound = async (condition, message, { type, condition, statusCode, producedBy }) => {
-  if(!condition) {
-    const loc = await createLogJson()
-  }
-
-  return true;
+const notFound = async (condition, message) => {
+  throw new Error('not found');
 }
 
 module.exports = notFound;

@@ -12,7 +12,7 @@ type ClaimMessages {
   deletedAt: String
 }
 
-type ClaimMessageInput {
+input ClaimMessageInput {
   content: String!
   claimId: Int!
   images: [URL!]
@@ -30,7 +30,7 @@ type Query {
 type Mutation {
   setSeenMessages(messagesId: [String!]!): [ClaimMessages!]!
 
-  createMessage(input: ClaimMessageInput!): ClaimMessages
-  editMessage(input: ClaimMessageInput!): EditMessage
+  createMessage(input: ClaimMessageInput!): ClaimMessages!
+  editMessage(input: ClaimMessageInput!): ClaimMessages!
   deleteMessage(id: String!): String!
 }

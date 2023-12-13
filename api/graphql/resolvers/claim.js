@@ -1,6 +1,6 @@
 const chargeContain = require("../../functions/charge.contains");
-const { verifyAuth } = require("../../functions/jwt.functions");
 const isOnList = require("../../functions/role.contains");
+const { verifyAuth } = require("../../functions/jwt.functions");
 const { checkRole } = require("../../middlewares/check.role");
 
 const ClaimsResolver = {
@@ -50,7 +50,7 @@ const ClaimsResolver = {
       return claims;
     },
     getClaimsByType: async (_, { type }, ctx) => {
-      const { user: user, ec } = await verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'EMPLOYEE', 'OWNER', 'ADMIN');
 
       if(!chargeContain(ec, 'ADMINISTRATIVE')) 
@@ -65,10 +65,10 @@ const ClaimsResolver = {
       return claims;
     },
     getClaimsByCustomer: async (_, { id }, ctx) => {
-      const { user: user, role, ec, cid } = await verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER')
       
-      if(role === 'CUSTOMER' && cid !== id)
+      if(role === 'CUSTOMER' && user.cid !== id)
         throw new Error('unauthorized');
 
       if(role !== 'CUSTOMER' && !isOnList(ec, 'ADMINISTRATIVE'))
@@ -85,34 +85,90 @@ const ClaimsResolver = {
   },
   Mutation: {
     createClaim: async (_, { input }, ctx) => {
-      const {user: user, cid } = await verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER');
 
-      const { type, status, content, subject, orderId, products } = input;
+      const { type, content, subject, ticketId, products } = input;
 
-      const order = await ctx.db.orm.order.findUnique({
+      const ticket = await ctx.db.orm.ticket.findUnique({
         where: {
-          id: orderId,  
-        }
-      });
-
-      if(!order) 
-        ctx.error.notFound('order does not exists');
-
-      const claim = await ctx.db.orm.claim.create({
-        data: {
-          type,
-          status,
-          content,
-          subject,
-          customerId: cid,
+          id: ticketId,
+        },
+        select: {
           products: {
-            connect: [...products]
+            select: {
+              id: true,
+            }
+          },
+          customer: {
+            select: {
+              id: true, 
+              deletedAt: true,
+            }
           }
         }
       });
 
+      if(!ticket)
+        throw new Error('ticket does not exists')
+
+      if(!ticket.customer.id !== user.cid)
+        throw new Error('customer does not match with the ticket');
+
+      if(ticket.customer.deletedAt !== null)
+        throw new Error('customer was deleted');
+
+      // [{ productId: 'abasdhqw', quantity: 3, reason: 'DAMAGED' }]
+      const { products: productsSelled } = ticket;
+
+      const productsDoesNotMatch = [];
+
+      products.forEach((pr) => {
+        if(!productsSelled.some(product => product.id === pr.id))
+          productsDoesNotMatch.push({ id: pr.id, message: 'this product is not assigned to this ticket' });
+      });
+
+      if(productsDoesNotMatch.length > 0) 
+        throw new Error(JSON.stringify({
+          message: "products does not match with your ticket",
+          products: [
+            ...productsDoesNotMatch,
+          ],
+        }))
+
+      const claim = await ctx.db.orm.$transaction(async (tx) => {
+        const claimCreated = await tx.claim.create({
+          data: {
+            type, 
+            content, 
+            subject, 
+            ticketId,
+            customerId: user.cid
+          }
+        });
+
+        const createMany = products.map(async ({ productId, reason, quantity }) => ({
+          reason,
+          quantity,
+          productId,
+          customerId: user.cid,
+          ticketId: ticket.id,
+          claimId: claimCreated.id,
+        }));
+
+        await tx.claimed_products.createMany({
+          data: [
+            ...createMany
+          ]
+        });
+        
+        return claimCreated;
+      })
+
       return claim;
+    },
+    rejectClaim: async (_, { id }, ctx) => {
+
     },
     returnMoney: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
@@ -121,43 +177,185 @@ const ClaimsResolver = {
       if(user.ec !== 'ADMINISTRATIVE') 
         throw new Error('unauthorized');
 
-      const ticket = await ctx.db.orm.ticket.findUnique({
+      const claim = await ctx.db.orm.claim.findUnique({
         where: {
           id,
         },
         select: {
-          id: true,
           products: {
             select: {
               id: true,
               quantity: true,
+              reason: true,
+              product: {
+                select: {
+                  id: true,
+                  product: {
+                    select: {
+                      price: true,
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ticket: {
+            select: {
+              id: true,
+              amount: true,
             }
           },
           order: {
-            id: true,
-            customer: {
+            select: {
               id: true,
+            },
+            customer: {
+              select: {
+                id: true,
+              }
             }
           }
         }
       });
-
-      const { products, order: { id: orderId, customer: customerId } } = ticket;
-
+      
       const returnedMoney = await ctx.db.orm.$transaction(async (tx) => {
+        let totalToReturn = 0;
+        const { products: productsClaimed } = claim;  
+        
+        const claimUpd = await tx.claim.update({
+          where: {
+            id,
+          },
+          data: {
+            status: 'COMPLETED',
+            finalAction: 'RETURN_MONEY',
+          }
+        });
+        
+        const toCreate = await productsClaimed.map(async (pr) => {
+          totalToReturn += (pr.product.product.price * pr.quantity); 
 
+          await tx.products_selled.update({
+            where: {
+              id: pr.product.id,
+            },
+            data: {
+              quantity: {
+                decrement: pr.quantity
+              }
+            }
+          });
           
+          return {
+            productId: pr.id, 
+            reason: pr.reason,
+            quantity: pr.quantity,
+            customerId: claim.order.customer.id,
+            ticketId: claim.ticket.id,
+            claimId: id,
+          }
+        });
+                
+        await Promise.all([
+          tx.products_returned.createMany({
+            data: [...toCreate]
+          }),
+          tx.customer.update({
+            where: { id: claim.order.customer.id },
+            data: { amount: { increment: totalToReturn } }
+          }),
+          tx.claimed_products.updateMany({
+            where: { ticketId: claim.ticket.id },
+            data: { deletedAt: new Date().toISOString() }
+          })
+        ])
 
-
+        return claimUpd;
       });
 
       return returnedMoney;
     },
     changeProducts: async (_, { id }, ctx) => {
+      const user = await verifyAuth(ctx);
+      checkRole(user, 'EMPLOYEE', 'OWNER');
 
+      if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')
+        throw new Error('unauthorized');
+
+        const claim = await ctx.db.orm.claim.findUnique({
+          where: {
+            id,
+          },
+          select: {
+            products: {
+              select: {
+                id: true,
+                quantity: true,
+                reason: true,
+                product: {
+                  select: {
+                    id: true,
+                    quantity: true,
+                    product: {
+                      select: {
+                        id: true,
+                        price: true,
+                        stock: true,
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            ticket: {
+              select: {
+                id: true,
+                amount: true,
+              }
+            },
+            order: {
+              select: {
+                id: true,
+              },
+              customer: {
+                select: {
+                  id: true,
+                }
+              }
+            }
+          }
+        });
+
+        const handleProducts = await ctx.db.orm.$transaction(async (tx) => {
+          let totalPriceIfNotStock = 0;
+
+          const { products } = claim;
+          
+          
+
+        });
+
+        /*
+          [{ // products_claimed
+            id,
+            quantity,
+            reason,
+            product: [ // products_selled
+              {
+                id,
+                quantity,
+                product: { // products
+                  id,
+                  price,
+                  stock
+                }
+              }
+            ]
+          }]
+        */
     },
     editClaim: async (_, { id, input }, ctx) => {
-      const { user: user, cid, role } = await verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
 
       const claim = await ctx.db.orm.claim.findUnique({
@@ -167,7 +365,7 @@ const ClaimsResolver = {
       });
       if(!claim || claim.deletedAt !== null) ctx.error.notFound('order not found');
 
-      if(role === 'CUSTOMER' && claim.customerId !== cid)
+      if(role === 'CUSTOMER' && claim.customerId !== user.cid)
         throw new Error('unauthorized');
     
       if(role === 'CUSTOMER' && status && !isOnList(status, 'PENDING', 'CANCELLED', 'DELETED'))
@@ -191,7 +389,7 @@ const ClaimsResolver = {
       return edited;
     },
     deleteClaim: async (_, { id }, ctx) => {  
-      const { user: user, cid, role } = await verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
 
       const claim = await ctx.db.orm.claim.findUnique({

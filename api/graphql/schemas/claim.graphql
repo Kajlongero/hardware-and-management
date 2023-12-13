@@ -22,7 +22,7 @@ type Claims {
   subject: String!
   order: Order!
   customer: Customer!
-  products: [Product!]!
+  products: [ProductsSelled!]!
   createdAt: String!
   updatedAt: String
   deletedAt: String
@@ -30,11 +30,16 @@ type Claims {
 
 input ClaimInput {
   type: ClaimType!
-  status: ClaimStatus!
   content: String!
   subject: String!
-  orderId: Int!
-  products: [Int!]!
+  products: [ProductQuantityInput!]!
+  ticketId: Int!
+}
+
+input ProductQuantityInput {
+  productId: String!
+  quantity: Int!
+  reason: ClaimType!
 }
 
 type Query {
@@ -49,12 +54,12 @@ type Query {
 type Mutation {
   editClaimType(id: Int!, type: ClaimType!): Claims
   editClaimStatus(id: Int!, type: ClaimStatus!): Claims
-  sendMessage(input: ClaimMessageInput!, claimId: Int!): ClaimMessageInput
+  sendMessage(input: ClaimMessageInput!, claimId: Int!): Claims
 
   changeProductsClaim(id: Int!): Ticket
   returnMoney(id: Int!, action: ClaimWillDo!): Claims
 
   createClaim(input: ClaimInput!): Claims
-  editClaim(id: Int!, input: ClaimInput): Claims
+  editClaim(id: Int!, input: ClaimInput!): Claims
   deleteClaim(id: Int!): Int
 }
