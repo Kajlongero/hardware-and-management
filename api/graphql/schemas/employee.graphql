@@ -26,12 +26,12 @@ type Employee {
   salary: Float!
   workDays: [WORK_DAYS!]!
   charge: EMPLOYEE_ROLES!
-  isActive: Boolean
-  createdAt: String!
-  updatedAt: String!
-  firedAt: String!
-  birthDate: String
   auth: Auth!
+  isActive: Boolean
+  createdAt: String
+  updatedAt: String
+  firedAt: String
+  birthDate: String
 }
 
 input EmployeeInput {
@@ -64,7 +64,7 @@ type Query {
 }
 
 type Mutation {
-  createEmployee(input: EmployeeInput!): Customer
-  editEmployee(id: Int!, input: EmployeeInputEdit!): Customer
+  createEmployee(input: EmployeeInput!): Token
+  editEmployee(id: Int!, input: EmployeeInputEdit!): Employee
   deleteEmployee(id: Int!): Int
 }

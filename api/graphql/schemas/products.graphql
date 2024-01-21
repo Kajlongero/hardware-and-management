@@ -1,7 +1,7 @@
 scalar URL
 
 type Product {
-  id: Int!
+  id: String!
   name: String!
   stock: Int!
   price: Float!
@@ -14,11 +14,6 @@ type Product {
   deletedAt: String
 }
 
-type ProductQuantity {
-  product: Product!
-  quantity: Int!
-}
-
 input ProductInput {
   name: String!
   stock: Int!
@@ -29,23 +24,28 @@ input ProductInput {
 }
 
 input ProductWithQuantityInput {
-  id: Int!
+  id: String!
   quantity: Int!
+}
+
+input ImagesInOrder {
+  image: URL!
+  order: Int
 }
 
 type Query {
   getAllProducts(take: Int, step: Int): [Product!]!
-  getProductById(id: Int!): Product
+  getUniqueProduct(id: String!): Product!
 }
 
 type Mutation {
-  setAvailable(id: Int!, available: Boolean!): Product
+  setAvailable(id: String!, available: Boolean!): Product
 
-  stablishCoverImage(id: Int!, isRemoving: Boolean!, image: URL): Product
-  uploadProductImages(id: Int!, images: [URL!]!): Product
-  removeProductImages(id: Int!, imagesToDelete: [URL!]!): Product
+  stablishCoverImage(id: String!, isRemoving: Boolean!, image: URL): Product
+  uploadProductImages(id: String!, images: [ImagesInOrder!]!): Product
+  removeProductImages(id: String!, imagesToDelete: [URL!]!): Product
 
   createProduct(input: ProductInput!): Product
-  editProduct(id: Int!, input: ProductInput!): Product
-  deleteProduct(id: Int!): Int
+  editProduct(id: String!, input: ProductInput!): Product
+  deleteProduct(id: String!): String
 }

@@ -1,9 +1,17 @@
 scalar EmailAddress
 scalar JWT
 
+enum Roles {
+  CUSTOMER
+  EMPLOYEE
+  OWNER
+  ADMIN
+}
+
 type Auth {
   id: Int!
   email: EmailAddress!
+  role: String!
   createdAt: String!
   updatedAt: String
 }
@@ -28,6 +36,14 @@ type Mutation {
   customerLogin(input: LoginInput!): Token
   employeeLogin(input: LoginInput!): Token
 
-  customerPasswordRecovery(email: EmailAddress): String
-  employeePasswordRecovery(email: EmailAddress): String
+  passwordChange(oldPassword: String!, newPassword: String!): String
+
+  # Password Recovery
+  recoveryPasswordCode(email: EmailAddress!): Token
+  verifyCode(code: Int!): Token
+  changePassword(newPassword: String!): Token
+  #
+
+  customerChangeEmail(authId: Int!, email: EmailAddress!): EmailAddress
+  employeeChangeEmail(authId: Int!, email: EmailAddress!): EmailAddress
 }

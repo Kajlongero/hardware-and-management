@@ -9,13 +9,13 @@ enum OrderStatus {
 }
 
 type Order {
-  id: Int!
+  id: String!
   total: Float!
   status: OrderStatus!
   products: [Product!]!
   customer: Customer!
   employee: Employee!
-  payment: PaymentMethod!
+  paymentMethod: PaymentMethod!
   capture: URL
   reference: Int
   createdAt: String!
@@ -26,7 +26,6 @@ type Order {
 input OrderInput {
   products: [ProductWithQuantityInput!]!
   customerId: Int!
-  employeeId: Int!
   payment: PaymentMethod!
   capture: URL
   reference: Int
@@ -40,13 +39,12 @@ type Query {
   getOrdersByStatus(step: Int, take: Int, status: OrderStatus!): [Order]
 
   # All
-  getOrderById(id: Int!): Order
+  getOrderById(id: String!): Order
 }
 
 type Mutation {
-  setStatus(id: Int!, status: OrderStatus!): Order
-  completeOrder(id: Int): Ticket
-  cancelOrder(id: Int): Order
+  setStatus(id: String!, status: OrderStatus!): Order
+  cancelOrder(id: String): Order
 
   createOrder(input: OrderInput!): Order
   editOrder(input: OrderInput!): Order

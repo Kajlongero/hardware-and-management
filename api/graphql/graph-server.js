@@ -22,13 +22,13 @@ const startGraphServer = async (drname) => {
   const typeDefs = await schemaFiles(path.join(__dirname, 'schemas'));
   const resolvers = await resolverFiles();
 
-  passport.use('local-graphql-customer', GqlCustomerStrategy);
-  passport.use('local-graphql-employee', GqlEmployeeStrategy);
-  passport.use('jwt', JwtStrategy);
-
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
   app.use(cors());
+
+  passport.use('local-graphql-customer', GqlCustomerStrategy);
+  passport.use('local-graphql-employee', GqlEmployeeStrategy);
+  passport.use('jwt', JwtStrategy);
 
   app.use(express.static(path.join(drname, 'public', 'images')));
 

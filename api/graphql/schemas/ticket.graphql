@@ -1,5 +1,5 @@
 type Ticket {
-  id: Int!
+  id: String!
   amount: Float!
   employee: Employee!
   customer: Customer!
@@ -20,11 +20,8 @@ enum PaymentMethod {
 }
 
 input TicketInput {
-  amount: Float!
   employeeId: Int!
   customerId: Int!
-  products: [Int!]!
-  orderId: Int!
 }
 
 type Query {
@@ -35,9 +32,7 @@ type Query {
 }
 
 type Mutation {
-  employeeCreateTicket(input: TicketInput!): Ticket
-
-  createTicket(input: TicketInput!): Ticket
-  editTicket(id: Int!, input: TicketInput!): Ticket
-  deleteTicket(id: Int!): Int
+  completeOrder(id: String): Ticket
+  editTicket(id: String!, input: TicketInput!): Ticket
+  deleteTicket(id: String!): String
 }

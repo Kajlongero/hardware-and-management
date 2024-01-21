@@ -43,7 +43,7 @@ input ProductQuantityInput {
 }
 
 type Query {
-  getAllClaims: [Claims]
+  getAllClaims(skip: Int, take: Int): [Claims]
   getUniqueClaim(id: Int!): Claims
 
   getClaimsByStatus(status: ClaimStatus): [Claims]

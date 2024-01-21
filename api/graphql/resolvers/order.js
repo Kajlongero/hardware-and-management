@@ -1,3 +1,4 @@
+const { verifyProductRepeated } = require("../../functions/verify.repeated");
 const { verifyAuth } = require("../../functions/jwt.functions");
 const { checkRole } = require("../../middlewares/check.role");
 
@@ -5,7 +6,7 @@ const OrderResolver = {
   Query: {
     getAllOrders: async (_, { step, take }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'ADMIN', 'OWNER');
+      checkRole(user, "ADMIN", "OWNER");
 
       const orders = await ctx.db.orm.order.findMany({
         take: take ?? 30,
@@ -16,7 +17,7 @@ const OrderResolver = {
     },
     getOrderById: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
+      checkRole(user, "CUSTOMER", "EMPLOYEE", "OWNER");
 
       const order = await ctx.db.orm.order.findUnique({
         where: {
@@ -26,21 +27,25 @@ const OrderResolver = {
           customer: true,
           employee: true,
           products: true,
-        }
+        },
       });
-      ctx.error.notFound(order, 'order does not exists');
+      ctx.error.notFound(order, "order does not exists");
 
-      if(user.role === 'CUSTOMER' && user.cid !== order.customerId) 
-        throw new Error('unauthorized');
+      if (user.role === "CUSTOMER" && user.cid !== order.customerId)
+        throw new Error("unauthorized");
 
-      if(user.role === 'EMPLOYEE' && user.eid !== order.employeeId && user.ec !== 'ADMINISTRATIVE') 
-        throw new Error('unauthorized');
+      if (
+        user.role === "EMPLOYEE" &&
+        user.eid !== order.employeeId &&
+        user.ec !== "ADMINISTRATIVE"
+      )
+        throw new Error("unauthorized");
 
       return order;
     },
     getOrdersByStatus: async (_, { status }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'CUSTOMER');
+      checkRole(user, "CUSTOMER");
 
       const orders = await ctx.db.orm.order.findMany({
         take: take ?? 30,
@@ -48,132 +53,80 @@ const OrderResolver = {
         where: {
           customerId: user.cid,
           status,
-        }
+        },
       });
 
       return orders;
-    }
+    },
   },
   Mutation: {
-    completeOrder: async (_, { id }, ctx) => {
-      const user = await verifyAuth(ctx);
-      if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
-        throw new Error('unauthorized');
-
-      const orderProcessed = await ctx.db.orm.$transaction(async (tx) => {
-        const order = await tx.order.findUnique({
-          where: {
-            id,
-          },
-          include: {
-            products: true,
-            customer: true,
-          }
-        });
-
-        if(orderProcessed.customer.deletedAt !== null) 
-          throw new Error('Cannot complete because, customer was deleted');
-
-        const productOrder = [...order.products];
-        const toMove = [];
-
-        productOrder.map(p => {
-          if(toMove.some(pr => pr.productId === p.id)) 
-            return null;
-          
-          toMove.push({
-            quantity: productOrder.filter(product => product.id).length,
-            productId: p.id,
-            customerId: user.cid,
-            employeerId: user.eid,
-            orderId: order.id,
-          });
-        });
-
-        await tx.products_selled.createMany({
-          data: toMove,
-        });
-
-        await tx.ticket.create({
-          data: {
-            employeeId: user.eid,
-            customerId: order.customerId,
-            amount: order.total,
-            orderId: order.id,
-            payment: order.payment,
-          }
-        });
-        const orderUpdated = await tx.order.update({
-          where: {
-            id
-          },
-          data: {
-            employeeId: user.eid,
-            status: 'COMPLETED',
-            processInfo: 'Order processed successfully',
-          }
-        });
-        
-        return orderUpdated;
-      });
-      return orderProcessed;
-    },
     cancelOrder: async (_, { id, reason }, ctx) => {
       const user = await verifyAuth(ctx);
 
-      if(user.role === 'EMPLOYEE' && user.ec !== 'ADMINISTRATIVE')  
-        throw new Error('unauthorized');
+      if (user.role === "EMPLOYEE" && user.ec !== "ADMINISTRATIVE")
+        throw new Error("unauthorized");
 
       const orderProcessed = await ctx.db.orm.$transaction(async (tx) => {
         const order = await tx.order.findUnique({
           where: {
             id,
           },
-          include: {
-            products: true,
-          }
-        });
-        const productOrder = [...order.products];
-        const filterUnique = [];
-
-        productOrder.map((p) => {
-          if(filterUnique.some(pr => pr.id === p.id))
-            return null;
-          filterUnique.push(p);
-        });
-
-        filterUnique.forEach(async (p) => {
-          await tx.product.update({
-            where: {
-              id: p.id
-            },
-            data: {
-              stock: {
-                increment: p.quantity,
-              },
-              available: true,
+          select: {
+            products: {
+              select: {
+                productId: true,
+                productQuantity: true,
+              }
             }
+          },
+        });
+
+        const productOrder = [...order.products];
+
+        await Promise.all([
+          ...productOrder.map((p) => {
+            return tx.product.update({
+              where: {
+                id: p.productId,
+              },
+              data: {
+                stock: {
+                  increment: p.productQuantity,
+                },
+                available: true,
+              },
+            });
           })
+        ]);
+
+        await tx.product_Order.deleteMany({
+          where: {
+            orderId: order.id,
+          }
         });
 
         const orderUpdated = await tx.order.update({
           where: {
-            id
+            id,
           },
           data: {
             employeeId: user.eid,
-            status: 'CANCELLED',
-            processInfo: reason,
+            status: "CANCELLED",
+            reasonForStatus: reason,
+          },
+          include: {
+            products: true,
+            employee: true,
           }
         });
-        
+
         return orderUpdated;
       });
       return orderProcessed;
     },
-    setStatus: async (_, { id, status }, ctx) => {
+    setStatus: async (_, { id, status, reasonForStatus }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
+      checkRole(user, "CUSTOMER", "EMPLOYEE", "OWNER");
 
       const order = await ctx.db.orm.order.findUnique({
         where: {
@@ -181,91 +134,188 @@ const OrderResolver = {
         },
       });
 
-      ctx.error.notFound(order, 'order does not exists');
+      if(!order)
+        throw new Error('order does not exists');
 
-      if(user.role === 'CUSTOMER' && order.customerId === user.cid && status !== 'CANCELLED')
-        throw new Error('unauthorized');
+      if (
+        user.role === "CUSTOMER" &&
+        order.customerId === user.cid &&
+        status !== "CANCELLED"
+      )
+        throw new Error("unauthorized");
 
-      if(order.employeeId !== user.eid) 
-        throw new Error('unauthorized');
+      if (order.employeeId !== user.eid) throw new Error("unauthorized");
 
       const orderUpdated = await ctx.db.orm.order.update({
         where: id,
         data: {
           status,
+          reasonForStatus: user.role === 'CUSTOMER' ? 'User cancelled the order' : (reasonForStatus ?? 'Cancelled'),
+        },
+        include: {
+          products: true,
+          employee: true,
         }
       });
+
+      if(user.role === "CUSTOMER" && status === 'CANCELLED') {
+        await Promise.all([
+          ...productOrder.map((p) => {
+            return tx.product.update({
+              where: {
+                id: p.productId,
+              },
+              data: {
+                stock: {
+                  increment: p.productQuantity,
+                },
+                available: true,
+              },
+            });
+          })
+        ]);
+
+        await tx.product_Order.deleteMany({
+          where: {
+            orderId: order.id,
+          }
+        });
+      }
 
       return orderUpdated;
     },
     createOrder: async (_, { input }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
+      checkRole(user, "CUSTOMER", "EMPLOYEE", "OWNER");
 
-      const { products } = input;
+      if (user.role === "CUSTOMER" && user.cid !== input.customerId)
+        throw new Error("unauthorized");
+
+      const products = verifyProductRepeated(input.products);
 
       let total = 0;
 
-      const order = await orm.$transaction(async (tx) => { 
-        products.map(async (p) => {
-          const product = await tx.product.findUnique({ where: { id: p.id } });
+      const order = await ctx.db.orm.$transaction(async (tx) => {
+        const allProducts = await Promise.all([
+          ...products.map((p) => {
+            return tx.product.findUnique({
+              where: {
+                id: p.id,
+                available: true,
+              },
+              select: {
+                id: true,
+                stock: true,
+                price: true,
+              },
+            });
+          }),
+        ]);
 
-          if(product.stock < p.quantity && !product.available)
-            throw new Error(`Invalid order, product '${product.name}' stock is lower than quantity ordered`);
-
-          total += product.price;
+        const notFound = [];
+        allProducts.forEach((p, index) => {
+          if (!p) notFound.push(products[index]);
+          if (p) total += p.price * products[index].quantity;
         });
 
-        const orderCreated = await ctx.db.tx.order.create({
+        if (notFound.length > 0)
+          throw new Error(`Products does not exists: ${notFound.map((p) => p.id).join(", ")}`);
+
+        const productsWithLessStock = [];
+
+        allProducts.forEach(({ id, stock }, index) => {
+          if (products[index].quantity > stock)
+            productsWithLessStock.push(products[index]);
+        });
+
+        if (productsWithLessStock.length > 0)
+          throw new Error(`These products does not have the stock requested: ${productsWithLessStock.map((p) => p.id).join(", ")}`);
+
+        const orderCreated = await tx.order.create({
           data: {
-            total,
-            status: 'PENDING',
+            total: total,
+            status: "PENDING",
             customerId: input.customerId,
-            products: {
-              connect: [...products.map(p => p.id)]
-            }
+            paymentMethod: input.payment,
+            reasonForStatus: 'ORDER ASSIGNED',
+          },
+          include: {
+            products: true,
           }
         });
 
-        products.map(async (p) => {
-          const { stock } = await tx.product.update({ 
-            where: { 
-              id: p.id 
-            }, 
-            data: { 
-              stock: { 
-                decrement: p.quantity
+        const productsToSubmit = [...products.map((p) => ({
+          orderId: orderCreated.id,
+          productId: p.id,
+          productQuantity: p.quantity
+        }))];
+
+        const productsSubmited = await tx.product_Order.createMany({
+          skipDuplicates: true,
+          data: productsToSubmit,
+        });
+
+        const updateAll = await Promise.all([
+          ...products.map((p) => {
+            return tx.product.update({
+              where: {
+                id: p.id,
               },
-            } 
-          });
-          if(stock - p.quantity <= 0)
-            await tx.product.update({ 
-              where: { 
-                id: p.id 
-              }, 
-              data: { 
+              data: {
+                stock: {
+                  decrement: p.quantity,
+                },
+              },
+              select: {
+                id: true,
+                stock: true,
+              },
+            });
+          }),
+        ]);
+
+        updateAll.forEach(async ({ id, stock }, index) => {
+          if (stock - products[index].stock <= 0)
+            await tx.product.update({
+              where: {
+                id,
+              },
+              data: {
                 available: stock - p.quantity <= 0 ? false : undefined,
-              } 
+              },
             });
         });
 
-        return orderCreated;
-      }); 
+        const ord = await tx.order.findUnique({
+          where: {
+            id: orderCreated.id,
+          },
+          include: {
+            products: true,
+          }
+        });
+
+        return ord;
+      });
       return order;
     },
     editOrder: async (_, { id, input }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'EMPLOYEE', 'OWNER');
+      checkRole(user, "EMPLOYEE", "OWNER");
 
       const order = await ctx.db.orm.order.findUnique({
         where: {
           id,
         },
       });
-      ctx.error.notFound(order, 'order does not exists');
+      ctx.error.notFound(order, "order does not exists");
 
-      if(user.role === 'EMPLOYEE' && order.employeeId !== user.eid && user.ec !== 'ADMINISTRATIVE')  
-        throw new Error('unauthorized');
+      if (
+        user.role === "EMPLOYEE" &&
+        order.employeeId !== user.eid &&
+        user.ec !== "ADMINISTRATIVE"
+      )
+        throw new Error("unauthorized");
 
       const orderUpdated = await ctx.db.orm.order.update({
         where: {
@@ -273,42 +323,45 @@ const OrderResolver = {
         },
         data: {
           ...input,
-        }
+        },
       });
 
       return orderUpdated;
     },
     deleteOrder: async (_, { id }, ctx) => {
       const user = await verifyAuth(ctx);
-      checkRole(user, 'CUSTOMER', 'EMPLOYEE', 'OWNER');
+      checkRole(user, "CUSTOMER", "EMPLOYEE", "OWNER");
 
       const order = await ctx.db.orm.order.findUnique({
         where: {
           id,
-        }
+        },
       });
 
-      ctx.error.notFound(order, 'order does not exists');
+      ctx.error.notFound(order, "order does not exists");
 
-      if(user.role === 'CUSTOMER' && user.cid !== order.customerId)
-        throw new Error('unauthorized');
+      if (user.role === "CUSTOMER" && user.cid !== order.customerId)
+        throw new Error("unauthorized");
 
-      if(user.role === 'EMPLOYEE' && order.employeeId !== user.eid && user.ec !== 'ADMINISTRATIVE')  
-        throw new Error('unauthorized');
-    
+      if (
+        user.role === "EMPLOYEE" &&
+        order.employeeId !== user.eid &&
+        user.ec !== "ADMINISTRATIVE"
+      )
+        throw new Error("unauthorized");
+
       await ctx.db.orm.order.update({
         where: {
           id,
         },
         data: {
-          deleteAt: new Date().toISOString(), 
-        }
+          deleteAt: new Date().toISOString(),
+        },
       });
 
       return id;
-    }
+    },
   },
-
 };
 
 module.exports = OrderResolver;

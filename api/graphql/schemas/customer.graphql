@@ -24,13 +24,29 @@ input CustomerInput {
   birthDate: String
 }
 
+input CustomerEditInput {
+  firstName: String
+  lastName: String
+  address: String
+  dni: Int
+  dniType: DNI_TYPES
+  birthDate: String
+}
+
+input EditCustomerInput {
+  firstName: String
+  lastName: String
+  address: String
+  birthDate: String
+}
+
 type Query {
   getAllCustomer(skip: Int, take: Int): [Customer]!
   getUniqueCustomer(id: Int!): Customer
 }
 
 type Mutation {
-  createCustomer(input: CustomerInput!): Customer
-  editCustomer(id: Int!, input: CustomerInput!): Customer
+  createCustomer(input: CustomerInput!): Token!
+  editCustomer(id: Int!, input: EditCustomerInput!): Customer
   deleteCustomer(id: Int!): Int
 }

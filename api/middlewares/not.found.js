@@ -1,5 +1,6 @@
 const notFound = async (condition, message) => {
-  throw new Error('not found');
+  if(!condition)
+    throw new Error(message);
 }
 
 module.exports = notFound;

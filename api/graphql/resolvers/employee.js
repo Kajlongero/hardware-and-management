@@ -6,7 +6,7 @@ const { checkRole } = require("../../middlewares/check.role");
 const employeeResolver = {
   Query: {
     getAllEmployee: async (_, { skip, take }, ctx) => {
-      const user = verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
 
       if(user.ec !== 'ADMINISTRATIVE')
@@ -23,7 +23,7 @@ const employeeResolver = {
       return employee;
     },
     getUniqueEmployee: async (_, { id }, ctx) => {
-      const user = verifyAuth(ctx);
+      const user = await verifyAuth(ctx);
       checkRole(user, 'OWNER', 'ADMIN');
 
       const findById = await ctx.db.orm.employee.findUnique({
@@ -35,8 +35,16 @@ const employeeResolver = {
         },
       });
 
-      ctx.error.notFound(findById, 'employee does not exists');
-      return findById;
+      if(!findById)
+        ctx.error.notFound(findById, 'employee does not exists');
+      
+      return {
+        ...findById,
+        auth: {
+          ...findById.auth,
+          role: findById.auth.role,
+        }
+      };
     }
   },
   Mutation: {
@@ -48,7 +56,16 @@ const employeeResolver = {
         const { email, password } = input;
         
         const hash = await hashPassword(password);
-        const obj = { email, password: hash };
+        const obj = { email, password: hash, role: 'EMPLOYEE' };
+
+        const checkDisponibility = await ctx.db.orm.auth.findUnique({
+          where: {
+            email,
+          }
+        });
+  
+        if(checkDisponibility)
+          throw new Error('cannot use this email, please use another email');
 
         delete input.email;
         delete input.password;
@@ -58,7 +75,9 @@ const employeeResolver = {
             ...input,
             auth: {
               create: {
-                ...obj,
+                email: obj.email,
+                password: obj.password,
+                role: obj.role,
               }
             }
           },
@@ -67,7 +86,10 @@ const employeeResolver = {
           }
         }); 
         
-        return signToken(employee);
+        return {
+          token: signToken(employee),
+        }
+
       }catch(e){
         throw new Error(e.message);
       }
@@ -134,16 +156,6 @@ const employeeResolver = {
       return id;
     },
   },
-  Employee: {
-    auth: (parent) => ({
-      id: parent.auth?.id,
-      email: parent.auth?.email,
-      password: parent.auth?.password,
-      createdAt: parent.auth?.createdAt,
-      updatedAt: parent.auth?.updatedAt,
-      deletedAt: parent.auth?.deletedAt,
-    }),
-  }
 }
 
 module.exports = employeeResolver;
