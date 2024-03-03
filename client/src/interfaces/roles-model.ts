@@ -1,0 +1,1 @@
+export type Roles = "CUSTOMER" | "EMPLOYEE" | "OWNER" | "ADMIN"; 
