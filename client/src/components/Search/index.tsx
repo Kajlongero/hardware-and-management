@@ -28,7 +28,9 @@ export const Search = ({ full, hideOn }: Props) => {
 
   return (
     <div
-      className={`flex items-center ${!!hideOn ? `${hideOn}:hidden` : ""} ${
+      className={`flex items-center text-white ${
+        !!hideOn ? `${hideOn}:hidden` : ""
+      } ${
         focused.focused || focused.mouseFocus ? "bg-dark-3a" : "bg-dark-1a"
       } ${
         full ? "flex-1 w-full" : "w-40"
@@ -46,7 +48,7 @@ export const Search = ({ full, hideOn }: Props) => {
         onKeyDown={(e) => {
           if (
             search.length > 0 &&
-            ["Enter", "NumpadEnter"].includes(e.code) &&
+            ["Enter", "NumpadEnter"].includes(e.key) &&
             focused.focused
           )
             navigate.push(`/products?s=${search}`, { scroll: false });

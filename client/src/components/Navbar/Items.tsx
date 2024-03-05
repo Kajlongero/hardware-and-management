@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { NavLinks } from "@/interfaces/navlinks-model";
+import { headers } from "next/headers";
+import { NavLinks, ValidRoutes } from "@/interfaces/navlinks-model";
 import { Customer, Employee } from "@/interfaces/user-model";
 import { Roles } from "@/interfaces/roles-model";
 
@@ -21,6 +22,9 @@ const Item = ({
 };
 
 export const Items = ({ user, data }: Props) => {
+  const headersList = headers();
+  const pathname = headersList.get("next-url");
+
   return (
     <ul className="flex gap-4 only-tablet:hidden">
       {data.map(
@@ -31,7 +35,9 @@ export const Items = ({ user, data }: Props) => {
           isPublic,
           needsAccount,
           authorizedOnly,
+          notVisibleOn,
         }) => {
+          if (notVisibleOn?.includes(pathname as ValidRoutes)) return null;
           if (!user && !isPublic && needsAccount) return null;
           if (
             user &&
